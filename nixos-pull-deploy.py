@@ -5,6 +5,7 @@ import enum
 import os
 import subprocess
 import tomllib
+import typing
 
 
 DEPLOYED_BRANCH = "_deployed"
@@ -16,12 +17,14 @@ class Config:
     main_branch: str
     testing_prefix: str
     origin_url: str
+    hooks: dict[str, str]
 
     def __init__(self, path: str) -> None:
         with open(path, "rb") as file:
             parsed = tomllib.load(file)
 
         self.config_dir = parsed["config_dir"]
+        self.hooks = parsed["hooks"]
         origin = parsed["origin"]
         self.origin_url = origin["url"]
         self.main_branch = origin["main"]
@@ -106,6 +109,17 @@ def git_get_base(commit1: GitCommit, commit2: GitCommit) -> GitCommit:
     )
 
 
+def run_hook(hook_type: typing.Literal["success", "error"]) -> None:
+    hook_path = config.hooks[hook_type]
+
+    if hook_path is None:
+        return
+
+    process = subprocess.run([hook_path])
+    if process.returncode != 0:
+        print(f"error hook exited with code {process.returncode}")
+
+
 def deploy(commit: GitCommit, mode: DeployModes, magic_rollback: bool) -> None:
     git_command(["checkout", commit.commit_hash])
 
@@ -114,8 +128,8 @@ def deploy(commit: GitCommit, mode: DeployModes, magic_rollback: bool) -> None:
     args = ["nixos-rebuild", mode.value, "--flake", f"{config.config_dir}#{hostname}"]
     process = subprocess.run(args, stdout=2)
     if process.returncode != 0:
-        # TODO: Handle deploy error
         print("Deployment failed")
+        run_hook("error")
         return
 
     if magic_rollback:
@@ -125,8 +139,9 @@ def deploy(commit: GitCommit, mode: DeployModes, magic_rollback: bool) -> None:
             print("No network connection - rolling back")
             process = subprocess.run([old_generation, "switch"])
             if process.returncode != 0:
-                # TODO: Handle rollback error
                 print("Rollback failed")
+                run_hook("error")
+                return
 
             print(
                 "\nRolled back to previous generation because the network connection check failed"
@@ -136,6 +151,7 @@ def deploy(commit: GitCommit, mode: DeployModes, magic_rollback: bool) -> None:
     git_command(["checkout", DEPLOYED_BRANCH])
     git_command(["reset", "--hard", commit.commit_hash])
     print("\nDeployment succeeded")
+    run_hook("success")
 
 
 def setup_repo() -> None:

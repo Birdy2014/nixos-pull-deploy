@@ -112,6 +112,36 @@
                   description = "File to token to access private git repository via https";
                 };
               };
+
+              hooks = {
+                success = lib.mkOption {
+                  type = lib.types.nullOr (
+                    lib.types.oneOf [
+                      lib.types.str
+                      lib.types.package
+                    ]
+                  );
+                  default = null;
+                  description = "Path of executable to run if deployment succeeds";
+                  example = ''
+                    pkgs.writeShellScript "success-hook.sh" "echo build succeeded"
+                  '';
+                };
+
+                error = lib.mkOption {
+                  type = lib.types.nullOr (
+                    lib.types.oneOf [
+                      lib.types.str
+                      lib.types.package
+                    ]
+                  );
+                  default = null;
+                  description = "Path of executable to run if deployment fails";
+                  example = ''
+                    pkgs.writeShellScript "error-hook.sh" "echo build failed"
+                  '';
+                };
+              };
             };
           };
 
