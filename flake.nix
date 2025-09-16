@@ -2,7 +2,7 @@
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
 
   outputs =
-    { nixpkgs, ... }:
+    { self, nixpkgs }:
     let
       systems = [
         "x86_64-linux"
@@ -14,6 +14,49 @@
     in
     {
       formatter = forAllSupportedSystems (pkgs: pkgs.nixfmt-tree);
+
+      packages = forAllSupportedSystems (pkgs: {
+        default = pkgs.callPackage (
+          {
+            lib,
+            python3Packages,
+            git,
+            procps,
+            nixos-rebuild,
+          }:
+
+          python3Packages.buildPythonApplication {
+            pname = "nixos-pull-deploy-unwrapped";
+            version = "0.1.0";
+
+            src = ./.;
+
+            pyproject = true;
+            build-system = [ python3Packages.setuptools ];
+
+            nativeCheckInputs = [
+              python3Packages.unittestCheckHook
+              git
+            ];
+
+            makeWrapperArgs = [
+              "--prefix PATH : ${
+                lib.makeBinPath [
+                  git
+                  procps
+                  nixos-rebuild
+                ]
+              }"
+            ];
+
+            meta.mainProgram = "nixos-pull-deploy";
+          }
+        ) { };
+      });
+
+      checks = forAllSupportedSystems (pkgs: {
+        default = self.packages.${pkgs.system}.default;
+      });
 
       nixosModules.default =
         {
@@ -31,35 +74,29 @@
               lib.filterAttrs (name: value: value != null) input
             );
 
-          config_file = pkgs.writers.writeTOML "config.toml" (removeNull cfg.settings);
+          configFile = pkgs.writers.writeTOML "config.toml" (removeNull cfg.settings);
 
-          package = pkgs.stdenvNoCC.mkDerivation {
-            name = "auto-deploy";
+          package =
+            let
+              genericPackage = self.packages.${pkgs.system}.default.override {
+                nixos-rebuild = config.system.build.nixos-rebuild;
+              };
+            in
+            pkgs.stdenvNoCC.mkDerivation {
+              name = "nixos-pull-deploy";
 
-            src = ./.;
+              nativeBuildInputs = [ pkgs.makeWrapper ];
 
-            nativeBuildInputs = [ pkgs.makeWrapper ];
-            buildInputs = [ pkgs.python3 ];
+              dontUnpack = true;
 
-            installPhase = ''
-              install -Dm777 nixos-pull-deploy.py $out/bin/nixos-pull-deploy
+              installPhase = ''
+                mkdir -p $out/bin
+                makeWrapper ${genericPackage}/bin/nixos-pull-deploy $out/bin/nixos-pull-deploy \
+                  --set DEPLOY_CONFIG "${configFile}"
+              '';
 
-              wrapProgram $out/bin/nixos-pull-deploy \
-                --prefix PATH : ${
-                  lib.makeBinPath (
-                    with pkgs;
-                    [
-                      git
-                      procps
-                      config.system.build.nixos-rebuild
-                    ]
-                  )
-                } \
-                --add-flags "-c ${config_file}"
-            '';
-
-            meta.mainProgram = "nixos-pull-deploy";
-          };
+              meta.mainProgram = "nixos-pull-deploy";
+            };
         in
         {
           options.services.nixos-pull-deploy = {
@@ -113,34 +150,24 @@
                 };
               };
 
-              hooks = {
-                success = lib.mkOption {
-                  type = lib.types.nullOr (
-                    lib.types.oneOf [
-                      lib.types.str
-                      lib.types.package
-                    ]
-                  );
-                  default = null;
-                  description = "Path of executable to run if deployment succeeds";
-                  example = ''
-                    pkgs.writeShellScript "success-hook.sh" "echo build succeeded"
-                  '';
-                };
-
-                error = lib.mkOption {
-                  type = lib.types.nullOr (
-                    lib.types.oneOf [
-                      lib.types.str
-                      lib.types.package
-                    ]
-                  );
-                  default = null;
-                  description = "Path of executable to run if deployment fails";
-                  example = ''
-                    pkgs.writeShellScript "error-hook.sh" "echo build failed"
-                  '';
-                };
+              hook = lib.mkOption {
+                type = lib.types.nullOr (
+                  lib.types.oneOf [
+                    lib.types.str
+                    lib.types.package
+                  ]
+                );
+                default = null;
+                description = "Script or path of executable to run after deployment";
+                example = ''
+                  pkgs.writeShellScript "hook.sh" '''
+                    case "$DEPLOY_STATUS" in
+                      success) echo 'deployment succeeded';;
+                      error) echo 'deployment failed';;
+                      rollback) echo 'network connection failed and the system was rolled back';;
+                    esac
+                  '''
+                '';
               };
             };
           };
