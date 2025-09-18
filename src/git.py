@@ -71,11 +71,11 @@ class GitWrapper:
             self.run(["merge-base", commit1.commit_hash, commit2.commit_hash])
         )
 
-    def get_note(self, commit: GitCommit) -> str | None:
+    def reset_branch_to(self, branch: str, target: GitCommit) -> None:
         try:
-            return self.run(["notes", "show", commit.commit_hash])
-        except GitException:
-            return None
-
-    def set_note(self, commit: GitCommit, note: str) -> None:
-        self.run(["notes", "add", "-f", commit.commit_hash, "-m", note])
+            self.run(["checkout", branch])
+        except GitException as exception:
+            if exception.code == 1:
+                self.run(["branch", branch, target.commit_hash])
+        else:
+            self.run(["reset", "--hard", target.commit_hash])

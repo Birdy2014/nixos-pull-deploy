@@ -35,7 +35,7 @@ def action_run(force_rebuild: bool, magic_rollback: bool) -> None:
 
     mode = nixos_deploy.config.get_deploy_mode(target.branch_type)
     print(f"Deploying {target.branch}, {target.commit} mode {mode}")
-    nixos_deploy.deploy(target.commit, mode, magic_rollback)
+    nixos_deploy.deploy(target.commit, target.branch_type, magic_rollback)
 
 
 def action_check() -> None:

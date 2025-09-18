@@ -8,6 +8,7 @@ from git import *
 
 
 DEPLOYED_BRANCH = "_deployed"
+DEPLOYED_BRANCH_MAIN = "_deployed_main"
 
 
 @dataclasses.dataclass()
@@ -131,8 +132,10 @@ class NixosDeploy:
         return process.returncode == 0
 
     def deploy(
-        self, commit: GitCommit, mode: DeployModes, magic_rollback: bool
+        self, commit: GitCommit, branch_type: BranchType, magic_rollback: bool
     ) -> None:
+        mode = self.config.get_deploy_mode(branch_type)
+
         self.config.git.run(["checkout", commit.commit_hash])
 
         old_generation = os.path.realpath(
@@ -141,7 +144,6 @@ class NixosDeploy:
 
         if not self.nixos_rebuild(mode, f"{self.config.config_dir}#{self.hostname}"):
             print("Deployment failed")
-            self.config.git.set_note(commit, DeployStatus.FAILED.value)
             self.run_hook(DeployStatus.FAILED, commit)
             return
 
@@ -153,22 +155,20 @@ class NixosDeploy:
                 process = subprocess.run([old_generation, "switch"])
                 if process.returncode != 0:
                     print("Rollback failed")
-                    self.config.git.set_note(commit, DeployStatus.FAILED.value)
                     self.run_hook(DeployStatus.FAILED, commit)
                     return
 
                 print(
                     "\nRolled back to previous generation because the network connection check failed"
                 )
-                self.config.git.set_note(commit, DeployStatus.ROLLBACK.value)
                 self.run_hook(DeployStatus.ROLLBACK, commit)
                 return
 
-        self.config.git.run(["checkout", DEPLOYED_BRANCH])
-        self.config.git.run(["reset", "--hard", commit.commit_hash])
+        self.config.git.reset_branch_to(DEPLOYED_BRANCH, commit)
+        if branch_type == BranchType.MAIN:
+            self.config.git.reset_branch_to(DEPLOYED_BRANCH_MAIN, commit)
         print(f"\nDeployment succeeded: {mode.value}")
         status = DeployStatus.from_success_mode(mode)
-        self.config.git.set_note(commit, status.value)
         self.run_hook(status, commit)
 
     def setup_repo(self) -> None:
@@ -193,6 +193,7 @@ class NixosDeploy:
         self.config.git.run(["fetch", "--prune"])
 
         deployed_commit = self.config.git.get_commit(DEPLOYED_BRANCH)
+        deployed_main_commit = self.config.git.get_commit(DEPLOYED_BRANCH_MAIN)
         testing_commit = self.config.git.get_commit(testing_branch)
         main_commit = self.config.git.get_commit(main_branch)
 
@@ -236,7 +237,5 @@ class NixosDeploy:
             main_commit,
             main_branch,
             BranchType.MAIN,
-            deployed_commit != main_commit
-            or self.config.git.get_note(deployed_commit)
-            != DeployStatus.from_success_mode(self.config.main_mode).value,
+            deployed_main_commit != main_commit,
         )

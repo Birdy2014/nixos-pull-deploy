@@ -68,20 +68,16 @@ class TestNixosDeploy(unittest.TestCase):
 
                 mode = config.get_deploy_mode(branch_type)
 
-                nixos_deploy.deploy(target_commit, mode, False)
+                nixos_deploy.deploy(target_commit, branch_type, False)
                 mock_function.assert_called_once_with(mode, f"{local_repo}#{hostname}")
 
                 deployed_branch = config.git.get_commit(DEPLOYED_BRANCH)
+                deployed_main_branch = config.git.get_commit(DEPLOYED_BRANCH_MAIN)
                 self.assertEqual(deployed_branch, target_commit)
-
-                target_status = (
-                    DeployStatus.from_success_mode(mode)
-                    if should_succeed
-                    else DeployStatus.FAILED
-                )
-                self.assertEqual(
-                    config.git.get_note(target_commit), target_status.value
-                )
+                if branch_type == BranchType.MAIN:
+                    self.assertEqual(deployed_main_branch, target_commit)
+                else:
+                    self.assertNotEqual(deployed_main_branch, target_commit)
 
         # Test 1 - get_commit_to_deploy from main with empty local repo
         origin_git.run(["commit", "--allow-empty", "--allow-empty-message", "-m", ""])
