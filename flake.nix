@@ -156,13 +156,11 @@
                 description = "Path to executable to run after deployment";
                 example = ''
                   pkgs.writeShellScript "hook.sh" '''
-                    case "$DEPLOY_STATUS" in
-                      success_test) echo 'test deployment succeeded';;
-                      success_switch) echo 'switch deployment succeeded';;
-                      success_build) echo 'build deployment succeeded';;
-                      failed) echo 'deployment failed';;
-                      rollback) echo 'network connection failed and the system was rolled back';;
-                    esac
+                    if [[ "$DEPLOY_SUCCESS" == '1' ]] then
+                      echo "$DEPLOY_MODE deployment of commit $DEPLOY_COMMIT succeeded";;
+                    else
+                      echo 'deployment failed'
+                    fi
                   '''
                 '';
               };
