@@ -151,14 +151,9 @@
               };
 
               hook = lib.mkOption {
-                type = lib.types.nullOr (
-                  lib.types.oneOf [
-                    lib.types.str
-                    lib.types.package
-                  ]
-                );
+                type = lib.types.nullOr lib.types.path;
                 default = null;
-                description = "Script or path of executable to run after deployment";
+                description = "Path to executable to run after deployment";
                 example = ''
                   pkgs.writeShellScript "hook.sh" '''
                     case "$DEPLOY_STATUS" in
