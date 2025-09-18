@@ -71,7 +71,9 @@ def main() -> None:
         help="Rebuild even if the build was attempted before",
     )
     subparser_run.add_argument("-d", "--dry-run", action="store_true")
-    subparser_run.add_argument("--magic-rollback", action="store_true", default=True)
+    subparser_run.add_argument(
+        "--magic-rollback", action=argparse.BooleanOptionalAction, default=True
+    )
 
     subparser_check = subparsers.add_parser("check", help="check for new commits")
 
