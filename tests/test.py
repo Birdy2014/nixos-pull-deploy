@@ -61,9 +61,9 @@ class TestNixosDeploy(unittest.TestCase):
 
                 mock_function.side_effect = side_effect_check_commit
 
-                nixos_deploy.deploy(target_commit, DeployModes.DRY_ACTIVATE, False)
+                nixos_deploy.deploy(target_commit, DeployModes.SWITCH, False)
                 mock_function.assert_called_once_with(
-                    DeployModes.DRY_ACTIVATE, f"{local_repo}#{hostname}"
+                    DeployModes.SWITCH, f"{local_repo}#{hostname}"
                 )
 
                 deployed_branch = config.git.get_commit(DEPLOYED_BRANCH)

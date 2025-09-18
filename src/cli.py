@@ -23,7 +23,7 @@ def is_rebuilding() -> bool:
     return False
 
 
-def action_run(force_rebuild: bool, dry_run: bool, magic_rollback: bool) -> None:
+def action_run(force_rebuild: bool, magic_rollback: bool) -> None:
     if is_rebuilding():
         print("A rebuild is already running")
         return
@@ -37,7 +37,7 @@ def action_run(force_rebuild: bool, dry_run: bool, magic_rollback: bool) -> None
         BranchType.MAIN: DeployModes.SWITCH,
         BranchType.TESTING: DeployModes.TEST,
     }
-    mode = DeployModes.DRY_ACTIVATE if dry_run else modes[target.branch_type]
+    mode = modes[target.branch_type]
     print(f"Deploying {target.branch}, {target.commit} mode {mode}")
     nixos_deploy.deploy(target.commit, mode, magic_rollback)
 
@@ -70,7 +70,6 @@ def main() -> None:
         action="store_true",
         help="Rebuild even if the build was attempted before",
     )
-    subparser_run.add_argument("-d", "--dry-run", action="store_true")
     subparser_run.add_argument(
         "--magic-rollback", action=argparse.BooleanOptionalAction, default=True
     )
@@ -92,7 +91,7 @@ def main() -> None:
     match args.action:
         case "run":
             nixos_deploy.setup_repo()
-            action_run(args.rebuild, args.dry_run, args.magic_rollback)
+            action_run(args.rebuild, args.magic_rollback)
         case "check":
             action_check()
 

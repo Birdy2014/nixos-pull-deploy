@@ -50,7 +50,6 @@ class Config:
 class DeployModes(enum.Enum):
     TEST = "test"
     SWITCH = "switch"
-    DRY_ACTIVATE = "dry-activate"
 
 
 class BranchType(enum.Enum):
