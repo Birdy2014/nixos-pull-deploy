@@ -70,3 +70,12 @@ class GitWrapper:
         return GitCommit(
             self.run(["merge-base", commit1.commit_hash, commit2.commit_hash])
         )
+
+    def get_note(self, commit: GitCommit) -> str | None:
+        try:
+            return self.run(["notes", "show", commit.commit_hash])
+        except GitException:
+            return None
+
+    def set_note(self, commit: GitCommit, note: str) -> None:
+        self.run(["notes", "add", "-f", commit.commit_hash, "-m", note])

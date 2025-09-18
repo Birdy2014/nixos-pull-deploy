@@ -57,6 +57,20 @@ class BranchType(enum.Enum):
     TESTING = "testing"
 
 
+class DeployStatus(enum.Enum):
+    SUCCESS_TEST = "success_test"
+    SUCCESS_SWITCH = "success_switch"
+    FAILED = "failed"
+    ROLLBACK = "rollback"
+
+    @staticmethod
+    def from_success_mode(mode: DeployModes) -> "DeployStatus":
+        return {
+            DeployModes.SWITCH: DeployStatus.SUCCESS_SWITCH,
+            DeployModes.TEST: DeployStatus.SUCCESS_TEST,
+        }[mode]
+
+
 @dataclasses.dataclass()
 class DeployTarget:
     commit: GitCommit
@@ -75,7 +89,7 @@ class NixosDeploy:
 
     def run_hook(
         self,
-        deploy_status: typing.Literal["success", "error", "rollback"],
+        deploy_status: DeployStatus,
         deploy_commit: GitCommit,
     ) -> None:
         hook_path = self.config.hook
@@ -84,7 +98,7 @@ class NixosDeploy:
             return
 
         hook_env = os.environ.copy()
-        hook_env["DEPLOY_STATUS"] = deploy_status
+        hook_env["DEPLOY_STATUS"] = deploy_status.value
         hook_env["DEPLOY_COMMIT"] = deploy_commit.commit_hash
 
         process = subprocess.run([hook_path], env=hook_env)
@@ -110,7 +124,8 @@ class NixosDeploy:
 
         if not self.nixos_rebuild(mode, f"{self.config.config_dir}#{self.hostname}"):
             print("Deployment failed")
-            self.run_hook("error", commit)
+            self.config.git.set_note(commit, DeployStatus.FAILED.value)
+            self.run_hook(DeployStatus.FAILED, commit)
             return
 
         if magic_rollback:
@@ -121,19 +136,23 @@ class NixosDeploy:
                 process = subprocess.run([old_generation, "switch"])
                 if process.returncode != 0:
                     print("Rollback failed")
-                    self.run_hook("error", commit)
+                    self.config.git.set_note(commit, DeployStatus.FAILED.value)
+                    self.run_hook(DeployStatus.FAILED, commit)
                     return
 
                 print(
                     "\nRolled back to previous generation because the network connection check failed"
                 )
-                self.run_hook("rollback", commit)
+                self.config.git.set_note(commit, DeployStatus.ROLLBACK.value)
+                self.run_hook(DeployStatus.ROLLBACK, commit)
                 return
 
         self.config.git.run(["checkout", DEPLOYED_BRANCH])
         self.config.git.run(["reset", "--hard", commit.commit_hash])
-        print("\nDeployment succeeded")
-        self.run_hook("success", commit)
+        print(f"\nDeployment succeeded: {mode.value}")
+        status = DeployStatus.from_success_mode(mode)
+        self.config.git.set_note(commit, status.value)
+        self.run_hook(status, commit)
 
     def setup_repo(self) -> None:
         if not os.path.exists(self.config.config_dir):
@@ -197,5 +216,10 @@ class NixosDeploy:
             )
 
         return DeployTarget(
-            main_commit, main_branch, BranchType.MAIN, deployed_commit != main_commit
+            main_commit,
+            main_branch,
+            BranchType.MAIN,
+            deployed_commit != main_commit
+            or self.config.git.get_note(deployed_commit)
+            != DeployStatus.SUCCESS_SWITCH.value,
         )

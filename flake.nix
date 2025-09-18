@@ -157,8 +157,9 @@
                 example = ''
                   pkgs.writeShellScript "hook.sh" '''
                     case "$DEPLOY_STATUS" in
-                      success) echo 'deployment succeeded';;
-                      error) echo 'deployment failed';;
+                      success_test) echo 'test deployment succeeded';;
+                      success_switch) echo 'switch deployment succeeded';;
+                      failed) echo 'deployment failed';;
                       rollback) echo 'network connection failed and the system was rolled back';;
                     esac
                   '''
