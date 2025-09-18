@@ -159,11 +159,32 @@
                     case "$DEPLOY_STATUS" in
                       success_test) echo 'test deployment succeeded';;
                       success_switch) echo 'switch deployment succeeded';;
+                      success_build) echo 'build deployment succeeded';;
                       failed) echo 'deployment failed';;
                       rollback) echo 'network connection failed and the system was rolled back';;
                     esac
                   '''
                 '';
+              };
+
+              deploy_modes = {
+                main = lib.mkOption {
+                  type = lib.types.oneOf [
+                    "test"
+                    "switch"
+                  ];
+                  default = "switch";
+                  description = "Mode to deploy the main branch with";
+                };
+
+                testing = lib.mkOption {
+                  type = lib.types.oneOf [
+                    "test"
+                    "switch"
+                  ];
+                  default = "test";
+                  description = "Mode to deploy the testing branch with";
+                };
               };
             };
           };

@@ -17,6 +17,8 @@ class Config:
     main_branch: str
     testing_prefix: str
     hook: str | None
+    main_mode: "DeployModes"
+    testing_mode: "DeployModes"
     git: GitWrapper
 
     @classmethod
@@ -37,19 +39,32 @@ class Config:
         if token is not None:
             origin_url = origin_url.replace("https://", f"https://git:{token}@")
 
+        modes = parsed.get("deploy_modes", {})
+        main_mode = modes.get(DeployModes("main"), DeployModes.SWITCH)
+        testing_mode = modes.get(DeployModes("testing"), DeployModes.TEST)
+
         return cls(
             config_dir=parsed["config_dir"],
             origin_url=origin_url,
             main_branch=origin["main"],
             testing_prefix=origin["testing"],
             hook=parsed.get("hook"),
+            main_mode=main_mode,
+            testing_mode=testing_mode,
             git=GitWrapper(parsed["config_dir"]),
         )
+
+    def get_deploy_mode(self, branch_type: "BranchType") -> "DeployModes":
+        return {
+            BranchType.MAIN: self.main_mode,
+            BranchType.TESTING: self.testing_mode,
+        }[branch_type]
 
 
 class DeployModes(enum.Enum):
     TEST = "test"
     SWITCH = "switch"
+    BUILD = "build"
 
 
 class BranchType(enum.Enum):
@@ -60,6 +75,7 @@ class BranchType(enum.Enum):
 class DeployStatus(enum.Enum):
     SUCCESS_TEST = "success_test"
     SUCCESS_SWITCH = "success_switch"
+    SUCCESS_BUILD = "success_build"
     FAILED = "failed"
     ROLLBACK = "rollback"
 
@@ -68,6 +84,7 @@ class DeployStatus(enum.Enum):
         return {
             DeployModes.SWITCH: DeployStatus.SUCCESS_SWITCH,
             DeployModes.TEST: DeployStatus.SUCCESS_TEST,
+            DeployModes.BUILD: DeployStatus.SUCCESS_BUILD,
         }[mode]
 
 
@@ -221,5 +238,5 @@ class NixosDeploy:
             BranchType.MAIN,
             deployed_commit != main_commit
             or self.config.git.get_note(deployed_commit)
-            != DeployStatus.SUCCESS_SWITCH.value,
+            != DeployStatus.from_success_mode(self.config.main_mode).value,
         )

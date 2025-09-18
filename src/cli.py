@@ -33,11 +33,7 @@ def action_run(force_rebuild: bool, magic_rollback: bool) -> None:
         print(f"Already on newest {target.branch} commit")
         return
 
-    modes = {
-        BranchType.MAIN: DeployModes.SWITCH,
-        BranchType.TESTING: DeployModes.TEST,
-    }
-    mode = modes[target.branch_type]
+    mode = nixos_deploy.config.get_deploy_mode(target.branch_type)
     print(f"Deploying {target.branch}, {target.commit} mode {mode}")
     nixos_deploy.deploy(target.commit, mode, magic_rollback)
 
