@@ -80,7 +80,11 @@ def main() -> None:
 
     config_file = os.environ.get("DEPLOY_CONFIG")
     if config_file is None:
-        print("Error: environment variable PULL_DEPLOY_CONFIG not set")
+        print("Error: environment variable DEPLOY_CONFIG not set")
+        exit(1)
+
+    if os.geteuid() != 0:
+        print("Error: I can only run as root")
         exit(1)
 
     config = Config.parse(config_file)
