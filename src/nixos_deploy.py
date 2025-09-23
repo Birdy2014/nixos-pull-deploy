@@ -41,8 +41,8 @@ class Config:
             origin_url = origin_url.replace("https://", f"https://git:{token}@")
 
         modes = parsed.get("deploy_modes", {})
-        main_mode = modes.get(DeployModes("main"), DeployModes.SWITCH)
-        testing_mode = modes.get(DeployModes("testing"), DeployModes.TEST)
+        main_mode = DeployModes(modes.get("main", DeployModes.SWITCH))
+        testing_mode = DeployModes(modes.get("testing", DeployModes.TEST))
 
         return cls(
             config_dir=parsed["config_dir"],

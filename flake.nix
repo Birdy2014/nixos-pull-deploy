@@ -178,18 +178,20 @@
 
               deploy_modes = {
                 main = lib.mkOption {
-                  type = lib.types.oneOf [
+                  type = lib.types.enum [
                     "test"
                     "switch"
+                    "build"
                   ];
                   default = "switch";
                   description = "Mode to deploy the main branch with";
                 };
 
                 testing = lib.mkOption {
-                  type = lib.types.oneOf [
+                  type = lib.types.enum [
                     "test"
                     "switch"
+                    "build"
                   ];
                   default = "test";
                   description = "Mode to deploy the testing branch with";
