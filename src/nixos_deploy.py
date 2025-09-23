@@ -91,7 +91,7 @@ class NixosDeploy:
 
     def run_hook(
         self,
-        success: bool,
+        status: typing.Literal["pre", "success", "failed"],
         branch_type: BranchType,
         mode: DeployModes,
         deploy_commit: GitCommit,
@@ -102,7 +102,7 @@ class NixosDeploy:
             return
 
         hook_env = os.environ.copy()
-        hook_env["DEPLOY_SUCCESS"] = "1" if success else "0"
+        hook_env["DEPLOY_STATUS"] = status
         hook_env["DEPLOY_TYPE"] = branch_type.value
         hook_env["DEPLOY_MODE"] = mode.value
         hook_env["DEPLOY_COMMIT"] = deploy_commit.commit_hash
@@ -130,9 +130,11 @@ class NixosDeploy:
             "/run/current-system/bin/switch-to-configuration"
         )
 
+        self.run_hook("pre", branch_type, mode, commit)
+
         if not self.nixos_rebuild(mode, f"{self.config.config_dir}#{self.hostname}"):
             print("Deployment failed")
-            self.run_hook(False, branch_type, mode, commit)
+            self.run_hook("failed", branch_type, mode, commit)
             return
 
         if magic_rollback:
@@ -143,20 +145,20 @@ class NixosDeploy:
                 process = subprocess.run([old_generation, "switch"])
                 if process.returncode != 0:
                     print("Rollback failed")
-                    self.run_hook(False, branch_type, mode, commit)
+                    self.run_hook("failed", branch_type, mode, commit)
                     return
 
                 print(
                     "\nRolled back to previous generation because the network connection check failed"
                 )
-                self.run_hook(False, branch_type, mode, commit)
+                self.run_hook("failed", branch_type, mode, commit)
                 return
 
         self.config.git.reset_branch_to(DEPLOYED_BRANCH, commit)
         if branch_type == BranchType.MAIN:
             self.config.git.reset_branch_to(DEPLOYED_BRANCH_MAIN, commit)
         print(f"\nDeployment succeeded: {mode.value}")
-        self.run_hook(True, branch_type, mode, commit)
+        self.run_hook("success", branch_type, mode, commit)
 
     def setup_repo(self) -> None:
         if not os.path.exists(self.config.config_dir):

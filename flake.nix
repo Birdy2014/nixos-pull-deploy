@@ -153,12 +153,23 @@
               hook = lib.mkOption {
                 type = lib.types.nullOr lib.types.path;
                 default = null;
-                description = "Path to executable to run after deployment";
+                description = ''
+                  Path to executable to run before and after deployment.
+
+                  The following environment variables are available:
+                  - DEPLOY_STATUS:
+                    - pre: deployment is about to happen
+                    - success: deployment succeeded
+                    - failed: deployment failed (either evaluation or build failure or it was automatically rolled back)
+                  - DEPLOY_TYPE: Type of branch that is being deployed, either "main" or "testing"
+                  - DEPLOY_MODE: Mode of nixos-rebuild call, either "switch", "test" or "build"
+                  - DEPLOY_COMMIT: Hash of the deployed commit
+                '';
                 example = ''
                   pkgs.writeShellScript "hook.sh" '''
-                    if [[ "$DEPLOY_SUCCESS" == '1' ]] then
+                    if [[ "$DEPLOY_STATUS" == 'success' ]] then
                       echo "$DEPLOY_MODE deployment of commit $DEPLOY_COMMIT succeeded";;
-                    else
+                    elif [[ "$DEPLOY_STATUS" == 'failed' ]]
                       echo 'deployment failed'
                     fi
                   '''
