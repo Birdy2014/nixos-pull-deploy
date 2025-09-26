@@ -162,7 +162,7 @@
                     - success: deployment succeeded
                     - failed: deployment failed (either evaluation or build failure or it was automatically rolled back)
                   - DEPLOY_TYPE: Type of branch that is being deployed, either "main" or "testing"
-                  - DEPLOY_MODE: Mode of nixos-rebuild call, either "switch", "test" or "build"
+                  - DEPLOY_MODE: Mode of nixos-rebuild call, either "switch", "test" or "boot"
                   - DEPLOY_COMMIT: Hash of the deployed commit
                 '';
                 example = ''
@@ -181,7 +181,7 @@
                   type = lib.types.enum [
                     "test"
                     "switch"
-                    "build"
+                    "boot"
                   ];
                   default = "switch";
                   description = "Mode to deploy the main branch with";
@@ -191,7 +191,7 @@
                   type = lib.types.enum [
                     "test"
                     "switch"
-                    "build"
+                    "boot"
                   ];
                   default = "test";
                   description = "Mode to deploy the testing branch with";

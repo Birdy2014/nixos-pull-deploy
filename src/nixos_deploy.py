@@ -65,7 +65,7 @@ class Config:
 class DeployModes(enum.Enum):
     TEST = "test"
     SWITCH = "switch"
-    BUILD = "build"
+    BOOT = "boot"
 
 
 class BranchType(enum.Enum):
