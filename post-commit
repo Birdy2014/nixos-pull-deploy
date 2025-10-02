@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+set -eu
+
+generated_docs="$(nix build --no-link --print-out-paths .#options-documentation)"
+
+cp "$generated_docs" ./options.md
+
+git diff --quiet -- options.md && exit
+
+git add options.md
+git commit --amend --no-edit

@@ -52,6 +52,22 @@
             meta.mainProgram = "nixos-pull-deploy";
           }
         ) { };
+
+        options-documentation =
+          let
+            eval = pkgs.lib.evalModules {
+              modules = [
+                { _module.check = false; }
+                self.nixosModules.default
+              ];
+            };
+            optionsDoc = pkgs.nixosOptionsDoc {
+              options = pkgs.lib.filterAttrs (name: value: name != "_module") eval.options;
+            };
+          in
+          pkgs.runCommand "options.md" { } ''
+            cp ${optionsDoc.optionsCommonMark} $out
+          '';
       });
 
       checks = forAllSupportedSystems (pkgs: {

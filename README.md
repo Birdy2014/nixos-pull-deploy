@@ -41,3 +41,5 @@ and configure it
   };
 }
 ```
+
+A list of all available options can be found in [options.md](./options.md).
