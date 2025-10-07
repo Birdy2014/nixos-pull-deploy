@@ -123,6 +123,9 @@ class NixosDeploy:
         self, commit: GitCommit, branch_type: BranchType, magic_rollback: bool
     ) -> None:
         mode = self.config.get_deploy_mode(branch_type)
+        magic_rollback = magic_rollback and (
+            mode == DeployModes.SWITCH or mode == DeployModes.SWITCH
+        )
 
         self.config.git.run(["checkout", commit.commit_hash])
 
@@ -142,7 +145,7 @@ class NixosDeploy:
                 self.config.git.run(["fetch"])
             except GitException:
                 print("No network connection - rolling back")
-                process = subprocess.run([old_generation, "switch"])
+                process = subprocess.run([old_generation, mode.value])
                 if process.returncode != 0:
                     print("Rollback failed")
                     self.run_hook("failed", branch_type, mode, commit)
