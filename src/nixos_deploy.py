@@ -2,6 +2,7 @@ import dataclasses
 import enum
 import os
 import subprocess
+import sys
 import tomllib
 import typing
 from git import *
@@ -126,6 +127,7 @@ class NixosDeploy:
         magic_rollback = magic_rollback and (
             mode == DeployModes.SWITCH or mode == DeployModes.SWITCH
         )
+        sys.stdout.flush()
 
         self.config.git.run(["checkout", commit.commit_hash])
 
