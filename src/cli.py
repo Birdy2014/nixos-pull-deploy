@@ -93,6 +93,11 @@ def main() -> None:
             nixos_deploy.setup_repo()
             action_run(args.rebuild, args.magic_rollback)
         case "check":
+            if not os.path.exists(config.config_dir):
+                print(
+                    f"Error: Local repo does not exist. Run '{parser.prog} run' first."
+                )
+                return
             action_check()
 
 
