@@ -224,6 +224,7 @@
                 description = "automatic pull-based nixos deployments";
                 script = "${lib.getExe package} run";
                 serviceConfig.Type = "exec";
+                restartIfChanged = false;
               };
 
               timers.nixos-pull-deploy = {
