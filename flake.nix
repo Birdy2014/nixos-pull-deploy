@@ -198,6 +198,8 @@
                     "test"
                     "switch"
                     "boot"
+                    "reboot"
+                    "reboot_on_kernel_change"
                   ];
                   default = "switch";
                   description = "Mode to deploy the main branch with";
@@ -208,6 +210,8 @@
                     "test"
                     "switch"
                     "boot"
+                    "reboot"
+                    "reboot_on_kernel_change"
                   ];
                   default = "test";
                   description = "Mode to deploy the testing branch with";

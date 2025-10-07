@@ -58,7 +58,7 @@ class TestNixosDeploy(unittest.TestCase):
                 "src.nixos_deploy.NixosDeploy.nixos_rebuild"
             ) as mock_function:
 
-                def side_effect_check_commit(mode: DeployModes, flake_uri: str):
+                def side_effect_check_commit(mode: NixosRebuildMode, flake_uri: str):
                     existing_commit = config.git.get_commit("HEAD")
                     self.assertIsNotNone(existing_commit)
                     self.assertEqual(existing_commit, chosen_commit.commit)
@@ -67,9 +67,15 @@ class TestNixosDeploy(unittest.TestCase):
                 mock_function.side_effect = side_effect_check_commit
 
                 mode = config.get_deploy_mode(branch_type)
+                rebuild_mode = {
+                    DeployModes.SWITCH: NixosRebuildMode.SWITCH,
+                    DeployModes.TEST: NixosRebuildMode.TEST,
+                }.get(mode, NixosRebuildMode.BOOT)
 
                 nixos_deploy.deploy(target_commit, branch_type, False)
-                mock_function.assert_called_once_with(mode, f"{local_repo}#{hostname}")
+                mock_function.assert_called_once_with(
+                    rebuild_mode, f"{local_repo}#{hostname}"
+                )
 
                 deployed_branch = config.git.get_commit(DEPLOYED_BRANCH)
                 deployed_main_branch = config.git.get_commit(DEPLOYED_BRANCH_MAIN)

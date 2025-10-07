@@ -1,5 +1,6 @@
 import dataclasses
 import enum
+import json
 import os
 import subprocess
 import sys
@@ -67,6 +68,14 @@ class DeployModes(enum.Enum):
     TEST = "test"
     SWITCH = "switch"
     BOOT = "boot"
+    REBOOT = "reboot"
+    REBOOT_ON_KERNEL_CHANGE = "reboot_on_kernel_change"
+
+
+class NixosRebuildMode(enum.Enum):
+    TEST = "test"
+    SWITCH = "switch"
+    BOOT = "boot"
 
 
 class BranchType(enum.Enum):
@@ -112,21 +121,26 @@ class NixosDeploy:
         if process.returncode != 0:
             print(f"hook exited with code {process.returncode}")
 
-    def nixos_rebuild(self, mode: DeployModes, flake_path: str) -> bool:
+    def nixos_rebuild(self, mode: NixosRebuildMode, flake_path: str) -> bool | str:
         """
         Wrapper around nixos-rebuild that can be mocked for testing.
         """
         args = ["nixos-rebuild", mode.value, "--flake", flake_path]
-        process = subprocess.run(args, stdout=2)
-        return process.returncode == 0
+        process = subprocess.run(args, stdout=subprocess.PIPE)
+        output = process.stdout.decode("utf-8")
+        print(output)
+        if process.returncode != 0:
+            return False
+        if mode == NixosRebuildMode.BOOT:
+            # return path to new generation
+            path = output.strip()
+            return path if os.path.exists(path) else True
+        return True
 
     def deploy(
         self, commit: GitCommit, branch_type: BranchType, magic_rollback: bool
     ) -> None:
         mode = self.config.get_deploy_mode(branch_type)
-        magic_rollback = magic_rollback and (
-            mode == DeployModes.SWITCH or mode == DeployModes.SWITCH
-        )
         sys.stdout.flush()
 
         self.config.git.run(["checkout", commit.commit_hash])
@@ -137,10 +151,45 @@ class NixosDeploy:
 
         self.run_hook("pre", branch_type, mode, commit)
 
-        if not self.nixos_rebuild(mode, f"{self.config.config_dir}#{self.hostname}"):
+        rebuild_mode = {
+            DeployModes.SWITCH: NixosRebuildMode.SWITCH,
+            DeployModes.TEST: NixosRebuildMode.TEST,
+        }.get(mode, NixosRebuildMode.BOOT)
+
+        build_output = self.nixos_rebuild(
+            rebuild_mode, f"{self.config.config_dir}#{self.hostname}"
+        )
+        if not build_output:
             print("Deployment failed")
             self.run_hook("failed", branch_type, mode, commit)
             return
+
+        should_reboot = False
+
+        if mode == DeployModes.BOOT:
+            magic_rollback = False
+
+        if mode == DeployModes.REBOOT:
+            should_reboot = True
+            magic_rollback = False
+
+        if mode == DeployModes.REBOOT_ON_KERNEL_CHANGE:
+            assert isinstance(build_output, str)
+
+            with open("/run/booted-system/boot.json", "r") as f:
+                booted_system_bootspec = json.load(f).get("org.nixos.bootspec.v1")
+            with open(f"{build_output}/boot.json", "r") as f:
+                new_system_bootspec = json.load(f).get("org.nixos.bootspec.v1")
+
+            if (
+                booted_system_bootspec["initrd"] == new_system_bootspec["initrd"]
+                and booted_system_bootspec["kernel"] == new_system_bootspec["kernel"]
+            ):
+                print("Activating new configuration")
+                subprocess.run([f"{build_output}/bin/switch-to-configuration", "test"])
+            else:
+                should_reboot = True
+                magic_rollback = False
 
         if magic_rollback:
             try:
@@ -164,6 +213,10 @@ class NixosDeploy:
             self.config.git.reset_branch_to(DEPLOYED_BRANCH_MAIN, commit)
         print(f"\nDeployment succeeded: {mode.value}")
         self.run_hook("success", branch_type, mode, commit)
+
+        if should_reboot:
+            print("Rebooting in 1 minute")
+            subprocess.run(["systemctl", "reboot", "--when=+1min"])
 
     def setup_repo(self) -> None:
         if not os.path.exists(self.config.config_dir):

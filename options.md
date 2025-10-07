@@ -87,7 +87,7 @@ Mode to deploy the main branch with
 
 
 *Type:*
-one of “test”, “switch”, “boot”
+one of “test”, “switch”, “boot”, “reboot”, “reboot_on_kernel_change”
 
 
 
@@ -105,7 +105,7 @@ Mode to deploy the testing branch with
 
 
 *Type:*
-one of “test”, “switch”, “boot”
+one of “test”, “switch”, “boot”, “reboot”, “reboot_on_kernel_change”
 
 
 
