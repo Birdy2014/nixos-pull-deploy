@@ -128,7 +128,7 @@ The following environment variables are available:
     - success: deployment succeeded
     - failed: deployment failed (either evaluation or build failure or it was automatically rolled back)
  - DEPLOY_TYPE: Type of branch that is being deployed, either “main” or “testing”
- - DEPLOY_MODE: Mode of nixos-rebuild call, either “switch”, “test” or “boot”
+ - DEPLOY_MODE: Mode of nixos-rebuild call, can be one of test, switch, boot, reboot, reboot_on_kernel_change
  - DEPLOY_COMMIT: Hash of the deployed commit
 
 
