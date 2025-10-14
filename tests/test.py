@@ -23,7 +23,8 @@ class TestNixosDeploy(unittest.TestCase):
             config_dir=local_repo,
             origin_url=f"file://{origin_repo}",
             main_branch="main",
-            testing_prefix="testing-",
+            testing_prefix="testing/",
+            testing_separator="/",
             hook=None,
             main_mode=DeployModes.SWITCH,
             testing_mode=DeployModes.TEST,
@@ -89,13 +90,17 @@ class TestNixosDeploy(unittest.TestCase):
         origin_git.run(["commit", "--allow-empty", "--allow-empty-message", "-m", ""])
 
         chosen_commit = nixos_deploy.get_commit_to_deploy()
-        assert_chosen_commit_and_deploy(chosen_commit, config.main_branch, BranchType.MAIN, True, True)
+        assert_chosen_commit_and_deploy(
+            chosen_commit, config.main_branch, BranchType.MAIN, True, True
+        )
 
         # Test 2 - get_commit_to_deploy from main with non-empty local repo
         origin_git.run(["commit", "--allow-empty", "--allow-empty-message", "-m", ""])
 
         chosen_commit = nixos_deploy.get_commit_to_deploy()
-        assert_chosen_commit_and_deploy(chosen_commit, config.main_branch, BranchType.MAIN, True, True)
+        assert_chosen_commit_and_deploy(
+            chosen_commit, config.main_branch, BranchType.MAIN, True, True
+        )
 
         # Test 3 - get_commit_to_deploy from testing
         origin_git.run(["checkout", "-b", testing_branch_name])
@@ -121,11 +126,31 @@ class TestNixosDeploy(unittest.TestCase):
         origin_git.run(["merge", "--ff-only", testing_branch_name])
 
         chosen_commit = nixos_deploy.get_commit_to_deploy()
-        assert_chosen_commit_and_deploy(chosen_commit, config.main_branch, BranchType.MAIN, True, True)
+        assert_chosen_commit_and_deploy(
+            chosen_commit, config.main_branch, BranchType.MAIN, True, True
+        )
 
         # Test 6 - check if commit is new
         chosen_commit = nixos_deploy.get_commit_to_deploy()
-        assert_chosen_commit_and_deploy(chosen_commit, config.main_branch, BranchType.MAIN, False, True)
+        assert_chosen_commit_and_deploy(
+            chosen_commit, config.main_branch, BranchType.MAIN, False, True
+        )
+
+        # Test 7 - multiple hostnames
+        testing_branch_name_multiple_hostnames = (
+            f"{config.testing_prefix}{hostname}abc{config.testing_separator}{hostname}"
+        )
+        origin_git.run(["checkout", "-b", testing_branch_name_multiple_hostnames])
+        origin_git.run(["commit", "--allow-empty", "--allow-empty-message", "-m", ""])
+        chosen_commit = nixos_deploy.get_commit_to_deploy()
+        assert_chosen_commit_and_deploy(
+            chosen_commit,
+            testing_branch_name_multiple_hostnames,
+            BranchType.TESTING,
+            True,
+            True,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -147,10 +147,16 @@
                   example = "main";
                 };
 
-                testing = lib.mkOption {
+                testing_prefix = lib.mkOption {
                   type = lib.types.str;
+                  default = "testing/";
                   description = "Prefix for testing branches. The hostname is appended to this prefix.";
-                  example = "testing-";
+                };
+
+                testing_separator = lib.mkOption {
+                  type = lib.types.str;
+                  default = "/";
+                  description = "Separator between hostnames in testing branch name";
                 };
 
                 token = lib.mkOption {

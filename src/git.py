@@ -79,3 +79,18 @@ class GitWrapper:
                 self.run(["branch", branch, target.commit_hash])
         else:
             self.run(["reset", "--hard", target.commit_hash])
+
+    def list_remote_branches(self) -> list[str]:
+        output = self.run(
+            [
+                "branch",
+                "--list",
+                "--remote",
+                "--sort=committerdate",
+                "--format",
+                "%(refname:short)",
+            ]
+        )
+        return list(
+            filter(lambda branch: branch.startswith("origin/"), output.split("\n"))
+        )

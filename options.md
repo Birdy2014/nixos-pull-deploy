@@ -177,7 +177,7 @@ string
 
 
 
-## services\.nixos-pull-deploy\.settings\.origin\.testing
+## services\.nixos-pull-deploy\.settings\.origin\.testing_prefix
 
 
 
@@ -190,8 +190,26 @@ string
 
 
 
-*Example:*
-` "testing-" `
+*Default:*
+` "testing/" `
+
+
+
+## services\.nixos-pull-deploy\.settings\.origin\.testing_separator
+
+
+
+Separator between hostnames in testing branch name
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` "/" `
 
 
 

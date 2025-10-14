@@ -3,7 +3,7 @@
 ## Features
 - Deploy from git remote
 - Automatic rollback if the new configuration can't reach the git remote anymore
-- Test changes using (potentially long-lived) host-specific testing branches
+- Test changes using (potentially long-lived) host-specific testing branches with support for multiple hosts per testing branch
 - Supports with force-pushes to any branch
 - Extensible via hooks
 
@@ -34,7 +34,6 @@ and configure it
       origin = {
         url = "https://github.com/...";
         main = "main";
-        testing = "testing-";
         token_file = config.sops.secrets."deployment-access-token".path;
       };
     };

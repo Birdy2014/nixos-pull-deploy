@@ -19,6 +19,7 @@ class Config:
     origin_url: str
     main_branch: str
     testing_prefix: str
+    testing_separator: str
     hook: str | None
     main_mode: "DeployModes"
     testing_mode: "DeployModes"
@@ -50,7 +51,8 @@ class Config:
             config_dir=parsed["config_dir"],
             origin_url=origin_url,
             main_branch=origin["main"],
-            testing_prefix=origin["testing"],
+            testing_prefix=origin["testing_prefix"],
+            testing_separator=origin["testing_separator"],
             hook=parsed.get("hook"),
             main_mode=main_mode,
             testing_mode=testing_mode,
@@ -235,13 +237,60 @@ class NixosDeploy:
 
     def get_commit_to_deploy(self) -> DeployTarget:
         main_branch = "origin/" + self.config.main_branch
-        testing_branch = "origin/" + self.config.testing_prefix + self.hostname
 
         self.config.git.run(["fetch", "--prune"])
 
+        def filter_hostname_branch(branch: str) -> bool:
+            if not branch.startswith(f"origin/{self.config.testing_prefix}"):
+                return False
+            hostnames = branch[
+                len("origin/") + len(self.config.testing_prefix) :
+            ].split(self.config.testing_separator)
+            return self.hostname in hostnames
+
+        testing_branches = filter(
+            filter_hostname_branch, self.config.git.list_remote_branches()
+        )
+
         deployed_commit = self.config.git.get_commit(DEPLOYED_BRANCH)
         deployed_main_commit = self.config.git.get_commit(DEPLOYED_BRANCH_MAIN)
-        testing_commit = self.config.git.get_commit(testing_branch)
+        main_commit = self.config.git.get_commit(main_branch)
+
+        if main_commit is None:
+            print(f"Error: {main_branch} does not exist")
+            exit(1)
+
+        for testing_branch in testing_branches:
+            testing_commit = self.config.git.get_commit(testing_branch)
+            if testing_commit is None:
+                continue
+
+            is_suitable, is_new = self.is_testing_commit_suitable_and_new(
+                testing_commit
+            )
+            if is_suitable:
+                return DeployTarget(
+                    testing_commit, testing_branch, BranchType.TESTING, is_new
+                )
+
+        # deployment branch is not yet initialized
+        if deployed_commit is None:
+            self.config.git.run(["branch", DEPLOYED_BRANCH, main_commit.commit_hash])
+            return DeployTarget(main_commit, main_branch, BranchType.MAIN, True)
+
+        return DeployTarget(
+            main_commit,
+            main_branch,
+            BranchType.MAIN,
+            deployed_main_commit != main_commit,
+        )
+
+    def is_testing_commit_suitable_and_new(
+        self, testing_commit: GitCommit
+    ) -> tuple[bool, bool]:
+        main_branch = "origin/" + self.config.main_branch
+
+        deployed_commit = self.config.git.get_commit(DEPLOYED_BRANCH)
         main_commit = self.config.git.get_commit(main_branch)
 
         if main_commit is None:
@@ -258,31 +307,15 @@ class NixosDeploy:
                 self.config.git.run(
                     ["branch", DEPLOYED_BRANCH, testing_commit.commit_hash]
                 )
-                return DeployTarget(
-                    testing_commit, testing_branch, BranchType.TESTING, True
-                )
-            self.config.git.run(["branch", DEPLOYED_BRANCH, main_commit.commit_hash])
-            return DeployTarget(main_commit, main_branch, BranchType.MAIN, True)
+                return True, True
+            return False, False
 
         main_base_commit = self.config.git.get_base(deployed_commit, main_commit)
-        if (
+        return (
             # testing branch exists
             testing_commit is not None
             # already on the testing branch or on a former testing branch (after force-push)
             and self.config.git.is_ancestor(main_base_commit, testing_commit)
             # testing branch is not merged into main branch
             and not self.config.git.is_ancestor(testing_commit, main_commit)
-        ):
-            return DeployTarget(
-                testing_commit,
-                testing_branch,
-                BranchType.TESTING,
-                deployed_commit != testing_commit,
-            )
-
-        return DeployTarget(
-            main_commit,
-            main_branch,
-            BranchType.MAIN,
-            deployed_main_commit != main_commit,
-        )
+        ), deployed_commit != testing_commit
