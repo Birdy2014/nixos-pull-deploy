@@ -151,6 +151,14 @@ class TestNixosDeploy(unittest.TestCase):
             True,
         )
 
+        # Test 8 - go back to main branch from testing
+        origin_git.run(["checkout", config.main_branch])
+        origin_git.run(["branch", "-D", testing_branch_name_multiple_hostnames])
+        chosen_commit = nixos_deploy.get_commit_to_deploy()
+        assert_chosen_commit_and_deploy(
+            chosen_commit, config.main_branch, BranchType.MAIN, True, True
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

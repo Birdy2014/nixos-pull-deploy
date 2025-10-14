@@ -284,7 +284,7 @@ class NixosDeploy:
             main_commit,
             main_branch,
             BranchType.MAIN,
-            deployed_main_commit != main_commit,
+            deployed_commit != main_commit or deployed_main_commit != main_commit,
         )
 
     def is_testing_commit_suitable_and_new(
