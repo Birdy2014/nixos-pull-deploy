@@ -2,6 +2,7 @@ import unittest
 import unittest.mock
 import os
 import tempfile
+import time
 from src.git import *
 from src.nixos_deploy import *
 
@@ -137,15 +138,19 @@ class TestNixosDeploy(unittest.TestCase):
         )
 
         # Test 7 - multiple hostnames
-        testing_branch_name_multiple_hostnames = (
-            f"{config.testing_prefix}{hostname}abc{config.testing_separator}{hostname}"
-        )
-        origin_git.run(["checkout", "-b", testing_branch_name_multiple_hostnames])
+        testing_branch_name_multiple_hostnames1 = f"{config.testing_prefix}{hostname}branch1{config.testing_separator}{hostname}"
+        testing_branch_name_multiple_hostnames2 = f"{config.testing_prefix}{hostname}branch2{config.testing_separator}{hostname}"
+        origin_git.run(["checkout", "-b", testing_branch_name_multiple_hostnames1])
+        origin_git.run(["commit", "--allow-empty", "--allow-empty-message", "-m", ""])
+        # Git timestamps have a resolution of 1 second, so we need to wait for the two commits to have different commit times
+        time.sleep(2)
+        origin_git.run(["checkout", config.main_branch])
+        origin_git.run(["checkout", "-b", testing_branch_name_multiple_hostnames2])
         origin_git.run(["commit", "--allow-empty", "--allow-empty-message", "-m", ""])
         chosen_commit = nixos_deploy.get_commit_to_deploy()
         assert_chosen_commit_and_deploy(
             chosen_commit,
-            testing_branch_name_multiple_hostnames,
+            testing_branch_name_multiple_hostnames2,
             BranchType.TESTING,
             True,
             True,
@@ -153,7 +158,8 @@ class TestNixosDeploy(unittest.TestCase):
 
         # Test 8 - go back to main branch from testing
         origin_git.run(["checkout", config.main_branch])
-        origin_git.run(["branch", "-D", testing_branch_name_multiple_hostnames])
+        origin_git.run(["branch", "-D", testing_branch_name_multiple_hostnames1])
+        origin_git.run(["branch", "-D", testing_branch_name_multiple_hostnames2])
         chosen_commit = nixos_deploy.get_commit_to_deploy()
         assert_chosen_commit_and_deploy(
             chosen_commit, config.main_branch, BranchType.MAIN, True, True

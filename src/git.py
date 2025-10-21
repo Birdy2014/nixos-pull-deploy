@@ -86,7 +86,7 @@ class GitWrapper:
                 "branch",
                 "--list",
                 "--remote",
-                "--sort=committerdate",
+                "--sort=-committerdate",
                 "--format",
                 "%(refname:short)",
             ]
