@@ -42,6 +42,24 @@ boolean
 
 
 
+## services\.nixos-pull-deploy\.autoUpgrade\.randomizedDelay
+
+
+
+RandomizedDelaySec for timer
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` "10min" `
+
+
+
 ## services\.nixos-pull-deploy\.autoUpgrade\.startAt
 
 

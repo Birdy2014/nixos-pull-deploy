@@ -136,6 +136,12 @@
                   default = "*-*-* 02:00:00";
                   description = "When to start automatic updates";
                 };
+
+                randomizedDelay = lib.mkOption {
+                  type = lib.types.str;
+                  default = "10min";
+                  description = "RandomizedDelaySec for timer";
+                };
               };
 
               settings = {
@@ -237,7 +243,13 @@
 
               timers.nixos-pull-deploy = {
                 wantedBy = [ "timers.target" ];
-                timerConfig.OnCalendar = cfg.autoUpgrade.startAt;
+                wants = [ "network-online.target" ];
+                after = [ "network-online.target" ];
+                timerConfig = {
+                  OnCalendar = cfg.autoUpgrade.startAt;
+                  Persistent = true;
+                  RandomizedDelaySec = cfg.autoUpgrade.randomizedDelay;
+                };
               };
             };
           };
