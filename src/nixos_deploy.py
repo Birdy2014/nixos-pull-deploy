@@ -250,8 +250,8 @@ class NixosDeploy:
             ].split(self.config.testing_separator)
             return self.hostname in hostnames
 
-        testing_branches = filter(
-            filter_hostname_branch, self.config.git.list_remote_branches()
+        testing_branches = list(
+            filter(filter_hostname_branch, self.config.git.list_remote_branches())
         )
 
         deployed_commit = self.config.git.get_commit(DEPLOYED_BRANCH)
@@ -261,6 +261,11 @@ class NixosDeploy:
         if main_commit is None:
             print(f"Error: {main_branch} does not exist")
             exit(1)
+
+        if len(testing_branches) > 1:
+            print(
+                f"Warning: found {len(testing_branches)} testing branches targeting this host:\n{"\n".join(map(lambda branch: f"- {branch}", testing_branches))}"
+            )
 
         for testing_branch in testing_branches:
             testing_commit = self.config.git.get_commit(testing_branch)
