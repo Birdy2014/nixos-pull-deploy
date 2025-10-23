@@ -74,6 +74,12 @@
         default = self.packages.${pkgs.system}.default;
       });
 
+      devShells = forAllSupportedSystems (pkgs: {
+        default = self.packages.${pkgs.system}.default.overrideAttrs (attrs: {
+          nativeBuildInputs = attrs.nativeBuildInputs ++ [ pkgs.black ];
+        });
+      });
+
       nixosModules.default =
         {
           config,
