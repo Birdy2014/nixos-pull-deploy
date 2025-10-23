@@ -14,14 +14,7 @@ def is_rebuilding() -> bool:
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
-    if process.returncode == 0:
-        return True
-
-    # TODO: Find out if a rebuild is currently running:
-    # - check for nixos-rebuild-switch-to-configuration.service
-    # - check if this script is running: pidfile?
-    # - check for systemd service that starts this script
-    return False
+    return process.returncode == 0
 
 
 def action_run(force_rebuild: bool, magic_rollback: bool) -> None:
@@ -46,11 +39,6 @@ def action_check() -> None:
         return
 
     log(f"New commit available on {target.branch}: {target.commit}")
-
-
-# TODO: cli: (maybe additionally to having a pidfile, check whether a nixos-rebuild process runs)
-# - status -> show if running, success, failed (check pidfile, git hash in /run/current-system?)
-# - cancel -> check pidfile, INT process
 
 
 def main() -> None:
