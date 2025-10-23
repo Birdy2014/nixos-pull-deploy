@@ -7,6 +7,7 @@ import sys
 import tomllib
 import typing
 from git import *
+from logger import *
 
 
 DEPLOYED_BRANCH = "_deployed"
@@ -121,7 +122,7 @@ class NixosDeploy:
 
         process = subprocess.run([hook_path], env=hook_env)
         if process.returncode != 0:
-            print(f"hook exited with code {process.returncode}")
+            log(f"hook exited with code {process.returncode}", LogLevel.ERROR)
 
     def nixos_rebuild(self, mode: NixosRebuildMode, flake_path: str) -> bool | str:
         """
@@ -130,7 +131,7 @@ class NixosDeploy:
         args = ["nixos-rebuild", mode.value, "--flake", flake_path]
         process = subprocess.run(args, stdout=subprocess.PIPE)
         output = process.stdout.decode("utf-8")
-        print(output)
+        log(output)
         if process.returncode != 0:
             return False
         if mode == NixosRebuildMode.BOOT:
@@ -162,7 +163,7 @@ class NixosDeploy:
             rebuild_mode, f"{self.config.config_dir}#{self.hostname}"
         )
         if not build_output:
-            print("Deployment failed")
+            log("Deployment failed", LogLevel.ERROR)
             self.run_hook("failed", branch_type, mode, commit)
             return
 
@@ -187,7 +188,7 @@ class NixosDeploy:
                 booted_system_bootspec["initrd"] == new_system_bootspec["initrd"]
                 and booted_system_bootspec["kernel"] == new_system_bootspec["kernel"]
             ):
-                print("Activating new configuration")
+                log("Activating new configuration")
                 subprocess.run([f"{build_output}/bin/switch-to-configuration", "test"])
             else:
                 should_reboot = True
@@ -197,17 +198,18 @@ class NixosDeploy:
             try:
                 self.config.git.run(["fetch"])
             except GitException:
-                print("No network connection - rolling back")
+                log("No network connection - rolling back", LogLevel.ERROR)
                 process = subprocess.run(
                     [old_generation, "switch" if mode == DeployModes.SWITCH else "test"]
                 )
                 if process.returncode != 0:
-                    print("Rollback failed")
+                    log("Rollback failed", LogLevel.ERROR)
                     self.run_hook("failed", branch_type, mode, commit)
                     return
 
-                print(
-                    "\nRolled back to previous generation because the network connection check failed"
+                log(
+                    "\nRolled back to previous generation because the network connection check failed",
+                    LogLevel.ERROR,
                 )
                 self.run_hook("failed", branch_type, mode, commit)
                 return
@@ -215,11 +217,11 @@ class NixosDeploy:
         self.config.git.reset_branch_to(DEPLOYED_BRANCH, commit)
         if branch_type == BranchType.MAIN:
             self.config.git.reset_branch_to(DEPLOYED_BRANCH_MAIN, commit)
-        print(f"\nDeployment succeeded: {mode.value}")
+        log(f"\nDeployment succeeded: {mode.value}")
         self.run_hook("success", branch_type, mode, commit)
 
         if should_reboot:
-            print("Rebooting in 1 minute")
+            log("Rebooting in 1 minute")
             subprocess.run(["systemctl", "reboot", "--when=+1min"])
 
     def setup_repo(self) -> None:
@@ -232,7 +234,7 @@ class NixosDeploy:
             return
 
         if not os.path.exists(os.path.join(self.config.config_dir, ".git")):
-            print(f"'{self.config.config_dir}' is not a git repository")
+            log(f"'{self.config.config_dir}' is not a git repository", LogLevel.ERROR)
             exit(1)
 
         self.config.git.run(["remote", "set-url", "origin", self.config.origin_url])
@@ -259,12 +261,13 @@ class NixosDeploy:
         main_commit = self.config.git.get_commit(main_branch)
 
         if main_commit is None:
-            print(f"Error: {main_branch} does not exist")
+            log(f"Error: {main_branch} does not exist", LogLevel.ERROR)
             exit(1)
 
         if len(testing_branches) > 1:
-            print(
-                f"Warning: found {len(testing_branches)} testing branches targeting this host:\n{"\n".join(map(lambda branch: f"- {branch}", testing_branches))}"
+            log(
+                f"Warning: found {len(testing_branches)} testing branches targeting this host:\n{"\n".join(map(lambda branch: f"- {branch}", testing_branches))}",
+                LogLevel.WARNING,
             )
 
         for testing_branch in testing_branches:
@@ -301,7 +304,7 @@ class NixosDeploy:
         main_commit = self.config.git.get_commit(main_branch)
 
         if main_commit is None:
-            print(f"Error: {main_branch} does not exist")
+            log(f"Error: {main_branch} does not exist", LogLevel.ERROR)
             exit(1)
 
         # deployment branch is not yet initialized

@@ -5,6 +5,7 @@ import os
 import subprocess
 from git import *
 from nixos_deploy import *
+from logger import *
 
 
 def is_rebuilding() -> bool:
@@ -25,26 +26,26 @@ def is_rebuilding() -> bool:
 
 def action_run(force_rebuild: bool, magic_rollback: bool) -> None:
     if is_rebuilding():
-        print("A rebuild is already running")
+        log("A rebuild is already running", LogLevel.ERROR)
         return
 
     target = nixos_deploy.get_commit_to_deploy()
     if not force_rebuild and not target.is_new:
-        print(f"Already on newest {target.branch} commit")
+        log(f"Already on newest {target.branch} commit")
         return
 
     mode = nixos_deploy.config.get_deploy_mode(target.branch_type)
-    print(f"Deploying {target.branch}, {target.commit} mode {mode}")
+    log(f"Deploying {target.branch}, {target.commit} mode {mode}")
     nixos_deploy.deploy(target.commit, target.branch_type, magic_rollback)
 
 
 def action_check() -> None:
     target = nixos_deploy.get_commit_to_deploy()
     if not target.is_new:
-        print(f"Already on newest {target.branch} commit")
+        log(f"Already on newest {target.branch} commit")
         return
 
-    print(f"New commit available on {target.branch}: {target.commit}")
+    log(f"New commit available on {target.branch}: {target.commit}")
 
 
 # TODO: cli: (maybe additionally to having a pidfile, check whether a nixos-rebuild process runs)
@@ -76,11 +77,11 @@ def main() -> None:
 
     config_file = os.environ.get("DEPLOY_CONFIG")
     if config_file is None:
-        print("Error: environment variable DEPLOY_CONFIG not set")
+        log("Error: environment variable DEPLOY_CONFIG not set", LogLevel.ERROR)
         exit(1)
 
     if os.geteuid() != 0:
-        print("Error: I can only run as root")
+        log("Error: I can only run as root", LogLevel.ERROR)
         exit(1)
 
     config = Config.parse(config_file)
@@ -94,9 +95,7 @@ def main() -> None:
             action_run(args.rebuild, args.magic_rollback)
         case "check":
             if not os.path.exists(config.config_dir):
-                print(
-                    f"Error: Local repo does not exist. Run '{parser.prog} run' first."
-                )
+                log(f"Error: Local repo does not exist. Run '{parser.prog} run' first.")
                 return
             action_check()
 
