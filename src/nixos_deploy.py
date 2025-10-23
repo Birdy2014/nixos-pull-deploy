@@ -119,6 +119,7 @@ class NixosDeploy:
         hook_env["DEPLOY_TYPE"] = branch_type.value
         hook_env["DEPLOY_MODE"] = mode.value
         hook_env["DEPLOY_COMMIT"] = deploy_commit.commit_hash
+        hook_env["DEPLOY_SCHEDULED"] = "1" if os.getppid() == 1 else "0"
 
         process = subprocess.run([hook_path], env=hook_env)
         if process.returncode != 0:
