@@ -38,23 +38,18 @@ class TestNixosDeploy(unittest.TestCase):
 
         testing_branch_name = f"{config.testing_prefix}{hostname}"
 
-        def assert_chosen_commit_and_deploy(
-            chosen_commit: DeployTarget,
+        def assert_chosen_target_and_deploy(
+            chosen_target: DeployTarget,
             target_branch: str,
             branch_type: BranchType,
             is_new: bool,
             should_succeed: bool,
         ) -> None:
+            self.assertEqual(chosen_target.is_new, is_new)
+            self.assertEqual(chosen_target.branch, f"origin/{target_branch}")
+            self.assertEqual(chosen_target.branch_type, branch_type)
+
             target_commit = origin_git.get_commit(target_branch)
-            self.assertIsNotNone(target_commit)
-
-            # The type checker doesn't pick up the assert above
-            target_commit = typing.cast(GitCommit, target_commit)
-
-            self.assertEqual(chosen_commit.commit, target_commit)
-            self.assertEqual(chosen_commit.is_new, is_new)
-            self.assertEqual(chosen_commit.branch, f"origin/{target_branch}")
-            self.assertEqual(chosen_commit.branch_type, branch_type)
 
             with unittest.mock.patch(
                 "src.nixos_deploy.NixosDeploy.nixos_rebuild"
@@ -63,7 +58,7 @@ class TestNixosDeploy(unittest.TestCase):
                 def side_effect_check_commit(mode: NixosRebuildMode, flake_uri: str):
                     existing_commit = config.git.get_commit("HEAD")
                     self.assertIsNotNone(existing_commit)
-                    self.assertEqual(existing_commit, chosen_commit.commit)
+                    self.assertEqual(existing_commit, target_commit)
                     return should_succeed
 
                 mock_function.side_effect = side_effect_check_commit
@@ -74,7 +69,9 @@ class TestNixosDeploy(unittest.TestCase):
                     DeployModes.TEST: NixosRebuildMode.TEST,
                 }.get(mode, NixosRebuildMode.BOOT)
 
-                nixos_deploy.deploy(target_commit, branch_type, False)
+                nixos_deploy.deploy(
+                    chosen_target.branch, chosen_target.branch_type, False, None
+                )
                 mock_function.assert_called_once_with(
                     rebuild_mode, f"{local_repo}#{hostname}"
                 )
@@ -91,7 +88,7 @@ class TestNixosDeploy(unittest.TestCase):
         origin_git.run(["commit", "--allow-empty", "--allow-empty-message", "-m", ""])
 
         chosen_commit = nixos_deploy.get_commit_to_deploy()
-        assert_chosen_commit_and_deploy(
+        assert_chosen_target_and_deploy(
             chosen_commit, config.main_branch, BranchType.MAIN, True, True
         )
 
@@ -99,7 +96,7 @@ class TestNixosDeploy(unittest.TestCase):
         origin_git.run(["commit", "--allow-empty", "--allow-empty-message", "-m", ""])
 
         chosen_commit = nixos_deploy.get_commit_to_deploy()
-        assert_chosen_commit_and_deploy(
+        assert_chosen_target_and_deploy(
             chosen_commit, config.main_branch, BranchType.MAIN, True, True
         )
 
@@ -108,7 +105,7 @@ class TestNixosDeploy(unittest.TestCase):
         origin_git.run(["commit", "--allow-empty", "--allow-empty-message", "-m", ""])
 
         chosen_commit = nixos_deploy.get_commit_to_deploy()
-        assert_chosen_commit_and_deploy(
+        assert_chosen_target_and_deploy(
             chosen_commit, testing_branch_name, BranchType.TESTING, True, True
         )
 
@@ -118,7 +115,7 @@ class TestNixosDeploy(unittest.TestCase):
         origin_git.run(["commit", "--allow-empty", "--allow-empty-message", "-m", ""])
 
         chosen_commit = nixos_deploy.get_commit_to_deploy()
-        assert_chosen_commit_and_deploy(
+        assert_chosen_target_and_deploy(
             chosen_commit, testing_branch_name, BranchType.TESTING, True, True
         )
 
@@ -127,13 +124,13 @@ class TestNixosDeploy(unittest.TestCase):
         origin_git.run(["merge", "--ff-only", testing_branch_name])
 
         chosen_commit = nixos_deploy.get_commit_to_deploy()
-        assert_chosen_commit_and_deploy(
+        assert_chosen_target_and_deploy(
             chosen_commit, config.main_branch, BranchType.MAIN, True, True
         )
 
         # Test 6 - check if commit is new
         chosen_commit = nixos_deploy.get_commit_to_deploy()
-        assert_chosen_commit_and_deploy(
+        assert_chosen_target_and_deploy(
             chosen_commit, config.main_branch, BranchType.MAIN, False, True
         )
 
@@ -148,7 +145,7 @@ class TestNixosDeploy(unittest.TestCase):
         origin_git.run(["checkout", "-b", testing_branch_name_multiple_hostnames2])
         origin_git.run(["commit", "--allow-empty", "--allow-empty-message", "-m", ""])
         chosen_commit = nixos_deploy.get_commit_to_deploy()
-        assert_chosen_commit_and_deploy(
+        assert_chosen_target_and_deploy(
             chosen_commit,
             testing_branch_name_multiple_hostnames2,
             BranchType.TESTING,
@@ -161,7 +158,7 @@ class TestNixosDeploy(unittest.TestCase):
         origin_git.run(["branch", "-D", testing_branch_name_multiple_hostnames1])
         origin_git.run(["branch", "-D", testing_branch_name_multiple_hostnames2])
         chosen_commit = nixos_deploy.get_commit_to_deploy()
-        assert_chosen_commit_and_deploy(
+        assert_chosen_target_and_deploy(
             chosen_commit, config.main_branch, BranchType.MAIN, True, True
         )
 

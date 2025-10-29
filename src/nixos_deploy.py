@@ -88,7 +88,6 @@ class BranchType(enum.Enum):
 
 @dataclasses.dataclass()
 class DeployTarget:
-    commit: GitCommit
     branch: str
     branch_type: BranchType
     is_new: bool
@@ -142,9 +141,24 @@ class NixosDeploy:
         return True
 
     def deploy(
-        self, commit: GitCommit, branch_type: BranchType, magic_rollback: bool
+        self,
+        branch: str,
+        branch_type: BranchType,
+        magic_rollback: bool,
+        deploy_mode_override: DeployModes | None,
     ) -> None:
-        mode = self.config.get_deploy_mode(branch_type)
+        commit = self.config.git.get_commit(branch)
+        if not commit:
+            log(f"No commit on branch {branch}", LogLevel.ERROR)
+            exit(1)
+
+        mode = (
+            self.config.get_deploy_mode(branch_type)
+            if deploy_mode_override is None
+            else deploy_mode_override
+        )
+
+        log(f"Deploying {branch}, {commit} mode {mode}")
         sys.stdout.flush()
 
         self.config.git.run(["checkout", commit.commit_hash])
@@ -280,17 +294,14 @@ class NixosDeploy:
                 testing_commit
             )
             if is_suitable:
-                return DeployTarget(
-                    testing_commit, testing_branch, BranchType.TESTING, is_new
-                )
+                return DeployTarget(testing_branch, BranchType.TESTING, is_new)
 
         # deployment branch is not yet initialized
         if deployed_commit is None:
             self.config.git.run(["branch", DEPLOYED_BRANCH, main_commit.commit_hash])
-            return DeployTarget(main_commit, main_branch, BranchType.MAIN, True)
+            return DeployTarget(main_branch, BranchType.MAIN, True)
 
         return DeployTarget(
-            main_commit,
             main_branch,
             BranchType.MAIN,
             deployed_commit != main_commit or deployed_main_commit != main_commit,

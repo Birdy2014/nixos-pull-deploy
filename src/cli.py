@@ -17,7 +17,9 @@ def is_rebuilding() -> bool:
     return process.returncode == 0
 
 
-def action_run(force_rebuild: bool, magic_rollback: bool) -> None:
+def action_run(
+    force_rebuild: bool, magic_rollback: bool, deploy_mode_override: DeployModes | None
+) -> None:
     if is_rebuilding():
         log("A rebuild is already running", LogLevel.ERROR)
         return
@@ -27,9 +29,12 @@ def action_run(force_rebuild: bool, magic_rollback: bool) -> None:
         log(f"Already on newest {target.branch} commit")
         return
 
-    mode = nixos_deploy.config.get_deploy_mode(target.branch_type)
-    log(f"Deploying {target.branch}, {target.commit} mode {mode}")
-    nixos_deploy.deploy(target.commit, target.branch_type, magic_rollback)
+    nixos_deploy.deploy(
+        target.branch,
+        target.branch_type,
+        magic_rollback,
+        deploy_mode_override,
+    )
 
 
 def action_check() -> None:
@@ -58,6 +63,9 @@ def main() -> None:
     subparser_run.add_argument(
         "--magic-rollback", action=argparse.BooleanOptionalAction, default=True
     )
+    subparser_run.add_argument(
+        "-m", "--deploy-mode-override", choices=[mode.value for mode in DeployModes]
+    )
 
     subparser_check = subparsers.add_parser("check", help="check for new commits")
 
@@ -80,7 +88,15 @@ def main() -> None:
     match args.action:
         case "run":
             nixos_deploy.setup_repo()
-            action_run(args.rebuild, args.magic_rollback)
+            action_run(
+                args.rebuild,
+                args.magic_rollback,
+                (
+                    DeployModes(args.deploy_mode_override)
+                    if args.deploy_mode_override is not None
+                    else None
+                ),
+            )
         case "check":
             if not os.path.exists(config.config_dir):
                 log(f"Error: Local repo does not exist. Run '{parser.prog} run' first.")
