@@ -128,7 +128,13 @@ class NixosDeploy:
         """
         Wrapper around nixos-rebuild that can be mocked for testing.
         """
-        args = ["nixos-rebuild", mode.value, "--flake", flake_path]
+        args = [
+            "nixos-rebuild",
+            mode.value,
+            "--flake",
+            flake_path,
+            "--no-update-lock-file",
+        ]
         process = subprocess.run(args, stdout=subprocess.PIPE)
         output = process.stdout.decode("utf-8")
         log(output)
