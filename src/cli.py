@@ -66,6 +66,12 @@ def main() -> None:
     subparser_run.add_argument(
         "-m", "--deploy-mode-override", choices=[mode.value for mode in DeployModes]
     )
+    subparser_run.add_argument(
+        "--ask-token",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Ask for the git token if the token file is not accessible",
+    )
 
     subparser_check = subparsers.add_parser("check", help="check for new commits")
 
@@ -80,7 +86,7 @@ def main() -> None:
         log("Error: I can only run as root", LogLevel.ERROR)
         exit(1)
 
-    config = Config.parse(config_file)
+    config = Config.parse(config_file, args.ask_token)
     hostname = os.uname().nodename
     global nixos_deploy
     nixos_deploy = NixosDeploy(config, hostname)

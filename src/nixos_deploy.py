@@ -27,7 +27,7 @@ class Config:
     git: GitWrapper
 
     @classmethod
-    def parse(cls, path: str) -> "Config":
+    def parse(cls, path: str, ask_token: bool) -> "Config":
         with open(path, "rb") as file:
             parsed = tomllib.load(file)
 
@@ -38,8 +38,13 @@ class Config:
         if "token" in origin:
             token = origin["token"]
         elif "token_file" in origin:
-            with open(origin["token_file"], "r") as file:
-                token = file.readline()
+            try:
+                with open(origin["token_file"], "r") as file:
+                    token = file.readline()
+            except (FileNotFoundError, PermissionError) as exception:
+                if not ask_token:
+                    raise exception
+                token = input("Git token: ")
 
         if token is not None:
             origin_url = origin_url.replace("https://", f"https://git:{token}@")
