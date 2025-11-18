@@ -80,7 +80,7 @@ class DeployModes(enum.Enum):
     REBOOT_ON_KERNEL_CHANGE = "reboot_on_kernel_change"
 
 
-class NixosRebuildMode(enum.Enum):
+class SwitchToConfigurationMode(enum.Enum):
     TEST = "test"
     SWITCH = "switch"
     BOOT = "boot"
@@ -129,27 +129,65 @@ class NixosDeploy:
         if process.returncode != 0:
             log(f"hook exited with code {process.returncode}", LogLevel.ERROR)
 
-    def nixos_rebuild(self, mode: NixosRebuildMode, flake_path: str) -> bool | str:
-        """
-        Wrapper around nixos-rebuild that can be mocked for testing.
-        """
-        args = [
-            "nixos-rebuild",
-            mode.value,
-            "--flake",
+    def build_configuration(self, add_to_profile: bool) -> str | None:
+        flake_path = f'{self.config.config_dir}#nixosConfigurations."{self.hostname}".config.system.build.toplevel'
+        profile = "/nix/var/nix/profiles/system"
+
+        command = [
+            "nix",
+            "--extra-experimental-features",
+            "nix-command flakes",
+            "build",
+            "--no-link",
+            "--print-out-paths",
             flake_path,
-            "--no-update-lock-file",
         ]
-        process = subprocess.run(args, stdout=subprocess.PIPE)
+        if add_to_profile:
+            command += ["--profile", profile]
+
+        process = subprocess.run(command, stdout=subprocess.PIPE)
         output = process.stdout.decode("utf-8")
         log(output)
+
         if process.returncode != 0:
-            return False
-        if mode == NixosRebuildMode.BOOT:
-            # return path to new generation
-            path = output.strip()
-            return path if os.path.exists(path) else True
-        return True
+            log(
+                f"Error: nix build exited with code {process.returncode}",
+                LogLevel.ERROR,
+            )
+            return None
+
+        path = output.strip()
+        if os.path.exists(path):
+            return path
+
+        log("Error: nix build produced no output", LogLevel.ERROR)
+        return None
+
+    def switch_to_configuration(
+        self,
+        toplevel_derivation: str,
+        mode: SwitchToConfigurationMode,
+        install_bootloader: bool,
+    ) -> bool:
+        # based on nixos-rebuild
+        command = [
+            "systemd-run",
+            "-E"
+            "LOCALE_ARCHIVE",  # Will be set to new value early in switch-to-configuration script, but interpreter starts out with old value
+            "-E" f"NIXOS_INSTALL_BOOTLOADER={"1" if install_bootloader else "0"}",
+            "--collect",
+            "--no-ask-password",
+            "--pipe",
+            "--quiet",
+            "--service-type=exec",
+            "--unit=nixos-pull-deploy-switch-to-configuration",
+            "--wait",
+            f"{toplevel_derivation}/bin/switch-to-configuration",
+            mode.value,
+        ]
+
+        process = subprocess.run(command)
+        return process.returncode == 0
 
     def deploy(
         self,
@@ -174,24 +212,22 @@ class NixosDeploy:
 
         self.config.git.run(["checkout", commit.commit_hash])
 
-        old_generation = os.path.realpath(
-            "/run/current-system/bin/switch-to-configuration"
-        )
+        old_generation = os.path.realpath("/run/current-system")
 
         self.run_hook("pre", branch_type, mode, commit)
 
-        rebuild_mode = {
-            DeployModes.SWITCH: NixosRebuildMode.SWITCH,
-            DeployModes.TEST: NixosRebuildMode.TEST,
-        }.get(mode, NixosRebuildMode.BOOT)
-
-        build_output = self.nixos_rebuild(
-            rebuild_mode, f"{self.config.config_dir}#{self.hostname}"
-        )
+        build_output = self.build_configuration(mode != DeployModes.TEST)
         if not build_output:
-            log("Deployment failed", LogLevel.ERROR)
+            log("Build failed", LogLevel.ERROR)
             self.run_hook("failed", branch_type, mode, commit)
             return
+
+        switch_mode = {
+            DeployModes.SWITCH: SwitchToConfigurationMode.SWITCH,
+            DeployModes.TEST: SwitchToConfigurationMode.TEST,
+        }.get(mode, SwitchToConfigurationMode.BOOT)
+
+        self.switch_to_configuration(build_output, switch_mode, False)
 
         should_reboot = False
 
@@ -215,7 +251,12 @@ class NixosDeploy:
                 and booted_system_bootspec["kernel"] == new_system_bootspec["kernel"]
             ):
                 log("Activating new configuration")
-                subprocess.run([f"{build_output}/bin/switch-to-configuration", "test"])
+                if not self.switch_to_configuration(
+                    build_output, SwitchToConfigurationMode.TEST, False
+                ):
+                    log("Activation failed", LogLevel.ERROR)
+                    self.run_hook("failed", branch_type, mode, commit)
+                    return
             else:
                 should_reboot = True
                 magic_rollback = False
@@ -225,10 +266,15 @@ class NixosDeploy:
                 self.config.git.run(["fetch"])
             except GitException:
                 log("No network connection - rolling back", LogLevel.ERROR)
-                process = subprocess.run(
-                    [old_generation, "switch" if mode == DeployModes.SWITCH else "test"]
-                )
-                if process.returncode != 0:
+                if not self.switch_to_configuration(
+                    old_generation,
+                    (
+                        SwitchToConfigurationMode.SWITCH
+                        if mode == DeployModes.SWITCH
+                        else SwitchToConfigurationMode.TEST
+                    ),
+                    False,
+                ):
                     log("Rollback failed", LogLevel.ERROR)
                     self.run_hook("failed", branch_type, mode, commit)
                     return

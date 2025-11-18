@@ -9,14 +9,18 @@ from src.nixos_deploy import *
 
 # TODO: test hooks
 class TestNixosDeploy(unittest.TestCase):
-    def test(self) -> None:
+    @unittest.mock.patch.object(NixosDeploy, "build_configuration")
+    @unittest.mock.patch.object(NixosDeploy, "switch_to_configuration")
+    def test(self, mock_switch_to_configuration, mock_build_configuration) -> None:
         tmp_dir = tempfile.TemporaryDirectory()
         local_repo = f"{tmp_dir.name}/repo"
         origin_repo = f"{tmp_dir.name}/origin-repo"
         hostname = "host"
+        toplevel_store_path = f"{tmp_dir.name}/toplevel_store_path"
 
         os.mkdir(local_repo)
         os.mkdir(origin_repo)
+        os.mkdir(toplevel_store_path)
         origin_git = GitWrapper(origin_repo)
 
         global config
@@ -51,38 +55,51 @@ class TestNixosDeploy(unittest.TestCase):
 
             target_commit = origin_git.get_commit(target_branch)
 
-            with unittest.mock.patch(
-                "src.nixos_deploy.NixosDeploy.nixos_rebuild"
-            ) as mock_function:
+            mock_build_configuration.reset_mock()
+            mock_switch_to_configuration.reset_mock()
 
-                def side_effect_check_commit(mode: NixosRebuildMode, flake_uri: str):
-                    existing_commit = config.git.get_commit("HEAD")
-                    self.assertIsNotNone(existing_commit)
-                    self.assertEqual(existing_commit, target_commit)
-                    return should_succeed
+            def side_effect_build_configuration(add_to_profile: bool) -> str | None:
+                existing_commit = config.git.get_commit("HEAD")
+                self.assertIsNotNone(existing_commit)
+                self.assertEqual(existing_commit, target_commit)
+                return toplevel_store_path if should_succeed else None
 
-                mock_function.side_effect = side_effect_check_commit
+            def side_effect_switch_to_configuration(
+                toplevel_derivation: str,
+                mode: SwitchToConfigurationMode,
+                install_bootloader: bool,
+            ) -> bool:
+                self.assertEqual(toplevel_derivation, toplevel_store_path)
+                return should_succeed
 
-                mode = config.get_deploy_mode(branch_type)
-                rebuild_mode = {
-                    DeployModes.SWITCH: NixosRebuildMode.SWITCH,
-                    DeployModes.TEST: NixosRebuildMode.TEST,
-                }.get(mode, NixosRebuildMode.BOOT)
+            mock_build_configuration.side_effect = side_effect_build_configuration
+            mock_switch_to_configuration.side_effect = (
+                side_effect_switch_to_configuration
+            )
 
-                nixos_deploy.deploy(
-                    chosen_target.branch, chosen_target.branch_type, False, None
-                )
-                mock_function.assert_called_once_with(
-                    rebuild_mode, f"{local_repo}#{hostname}"
-                )
+            mode = config.get_deploy_mode(branch_type)
+            rebuild_mode = {
+                DeployModes.SWITCH: SwitchToConfigurationMode.SWITCH,
+                DeployModes.TEST: SwitchToConfigurationMode.TEST,
+            }.get(mode, SwitchToConfigurationMode.BOOT)
 
-                deployed_branch = config.git.get_commit(DEPLOYED_BRANCH)
-                deployed_main_branch = config.git.get_commit(DEPLOYED_BRANCH_MAIN)
-                self.assertEqual(deployed_branch, target_commit)
-                if branch_type == BranchType.MAIN:
-                    self.assertEqual(deployed_main_branch, target_commit)
-                else:
-                    self.assertNotEqual(deployed_main_branch, target_commit)
+            nixos_deploy.deploy(
+                chosen_target.branch, chosen_target.branch_type, False, None
+            )
+            mock_build_configuration.assert_called_once_with(
+                rebuild_mode != SwitchToConfigurationMode.TEST
+            )
+            mock_switch_to_configuration.assert_called_once_with(
+                toplevel_store_path, rebuild_mode, False
+            )
+
+            deployed_branch = config.git.get_commit(DEPLOYED_BRANCH)
+            deployed_main_branch = config.git.get_commit(DEPLOYED_BRANCH_MAIN)
+            self.assertEqual(deployed_branch, target_commit)
+            if branch_type == BranchType.MAIN:
+                self.assertEqual(deployed_main_branch, target_commit)
+            else:
+                self.assertNotEqual(deployed_main_branch, target_commit)
 
         # Test 1 - get_commit_to_deploy from main with empty local repo
         origin_git.run(["commit", "--allow-empty", "--allow-empty-message", "-m", ""])

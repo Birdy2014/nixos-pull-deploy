@@ -22,7 +22,6 @@
             python3Packages,
             git,
             procps,
-            nixos-rebuild,
           }:
 
           python3Packages.buildPythonApplication {
@@ -44,7 +43,6 @@
                 lib.makeBinPath [
                   git
                   procps
-                  nixos-rebuild
                 ]
               }"
             ];
@@ -100,9 +98,7 @@
 
           package =
             let
-              genericPackage = self.packages.${pkgs.system}.default.override {
-                nixos-rebuild = config.system.build.nixos-rebuild;
-              };
+              genericPackage = self.packages.${pkgs.system}.default;
             in
             pkgs.stdenvNoCC.mkDerivation {
               name = "nixos-pull-deploy";
@@ -206,7 +202,7 @@
                       - success: deployment succeeded
                       - failed: deployment failed (either evaluation or build failure or it was automatically rolled back)
                     - DEPLOY_TYPE: Type of branch that is being deployed, either "main" or "testing"
-                    - DEPLOY_MODE: Mode of nixos-rebuild call, can be one of ${lib.concatStringsSep ", " deploy_modes}
+                    - DEPLOY_MODE: Deployment mode, can be one of ${lib.concatStringsSep ", " deploy_modes}
                     - DEPLOY_COMMIT: Hash of the deployed commit
                     - DEPLOY_SCHEDULED: 1 if the deployment is running inside of a systemd service, 0 if it is interactive
                   '';
