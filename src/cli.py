@@ -43,11 +43,18 @@ def action_check() -> None:
         log(f"Already on newest {target.branch} commit")
         return
 
-    log(f"New commit available on {target.branch}: {target.commit}")
+    log(f"New commit available on {target.branch}")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser()
+
+    parser.add_argument(
+        "--ask-token",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Ask for the git token if the token file is not accessible",
+    )
 
     subparsers = parser.add_subparsers(required=True, dest="action")
 
@@ -65,12 +72,6 @@ def main() -> None:
     )
     subparser_run.add_argument(
         "-m", "--deploy-mode-override", choices=[mode.value for mode in DeployModes]
-    )
-    subparser_run.add_argument(
-        "--ask-token",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="Ask for the git token if the token file is not accessible",
     )
 
     subparser_check = subparsers.add_parser("check", help="check for new commits")
