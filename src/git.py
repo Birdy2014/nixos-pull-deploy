@@ -51,7 +51,9 @@ class GitWrapper:
             return None
 
     def get_commit_message(self, commit: GitCommit) -> str:
-        body = self.run([ "rev-list", "--format=%B", "--max-count=1", commit.commit_hash ]).strip()
+        body = self.run(
+            ["rev-list", "--format=%B", "--max-count=1", commit.commit_hash]
+        ).strip()
         return "\n".join(body.split("\n")[1:])
 
     def is_ancestor(self, possible_ancestor: GitCommit, commit: GitCommit) -> bool:
