@@ -148,6 +148,7 @@ The following environment variables are available:
  - DEPLOY_TYPE: Type of branch that is being deployed, either “main” or “testing”
  - DEPLOY_MODE: Deployment mode, can be one of test, switch, boot, reboot, reboot_on_kernel_change
  - DEPLOY_COMMIT: Hash of the deployed commit
+ - DEPLOY_COMMIT_MESSAGE: Message of the deployed commit
  - DEPLOY_SCHEDULED: 1 if the deployment is running inside of a systemd service, 0 if it is interactive
 
 

@@ -26,7 +26,10 @@ def action_run(
 
     target = nixos_deploy.get_commit_to_deploy()
     if not force_rebuild and not target.is_new:
-        log(f"Already on newest {target.branch} commit")
+        commit = nixos_deploy.config.git.get_commit(target.branch)
+        assert commit is not None
+        log(f"Already on newest {target.branch} commit {commit}:")
+        log(nixos_deploy.config.git.get_commit_message(commit))
         return
 
     nixos_deploy.deploy(
@@ -40,7 +43,10 @@ def action_run(
 def action_check() -> None:
     target = nixos_deploy.get_commit_to_deploy()
     if not target.is_new:
-        log(f"Already on newest {target.branch} commit")
+        commit = nixos_deploy.config.git.get_commit(target.branch)
+        assert commit is not None
+        log(f"Already on newest {target.branch} commit {commit}:")
+        log(nixos_deploy.config.git.get_commit_message(commit))
         return
 
     log(f"New commit available on {target.branch}")
