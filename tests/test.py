@@ -58,11 +58,15 @@ class TestNixosDeploy(unittest.TestCase):
             mock_build_configuration.reset_mock()
             mock_switch_to_configuration.reset_mock()
 
-            def side_effect_build_configuration(add_to_profile: bool) -> str | None:
+            def side_effect_build_configuration(
+                add_to_profile: bool,
+            ) -> str | BuildErrorState:
                 existing_commit = config.git.get_commit("HEAD")
                 self.assertIsNotNone(existing_commit)
                 self.assertEqual(existing_commit, target_commit)
-                return toplevel_store_path if should_succeed else None
+                return (
+                    toplevel_store_path if should_succeed else BuildErrorState.CANCELLED
+                )
 
             def side_effect_switch_to_configuration(
                 toplevel_derivation: str,

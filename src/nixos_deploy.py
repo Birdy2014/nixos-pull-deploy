@@ -2,6 +2,7 @@ import dataclasses
 import enum
 import json
 import os
+import signal
 import subprocess
 import sys
 import tomllib
@@ -98,6 +99,11 @@ class DeployTarget:
     is_new: bool
 
 
+class BuildErrorState(enum.Enum):
+    FAILED = 0
+    CANCELLED = 1
+
+
 class NixosDeploy:
     config: Config
     hostname: str
@@ -130,7 +136,7 @@ class NixosDeploy:
         if process.returncode != 0:
             log(f"hook exited with code {process.returncode}", LogLevel.ERROR)
 
-    def build_configuration(self, add_to_profile: bool) -> str | None:
+    def build_configuration(self, add_to_profile: bool) -> str | BuildErrorState:
         flake_path = f'{self.config.config_dir}#nixosConfigurations."{self.hostname}".config.system.build.toplevel'
         profile = "/nix/var/nix/profiles/system"
 
@@ -146,8 +152,35 @@ class NixosDeploy:
         if add_to_profile:
             command += ["--profile", profile]
 
-        process = subprocess.run(command, stdout=subprocess.PIPE)
-        output = process.stdout.decode("utf-8")
+        cancelled = False
+
+        original_handler_sigint = signal.getsignal(signal.SIGINT)
+        original_handler_sigterm = signal.getsignal(signal.SIGTERM)
+
+        process = subprocess.Popen(
+            command, stdout=subprocess.PIPE, stdin=None, start_new_session=True
+        )
+
+        def handler(signum, _):
+            nonlocal cancelled
+            cancelled = True
+            process.send_signal(signal.SIGTERM)
+
+        signal.signal(signal.SIGINT, handler)
+        signal.signal(signal.SIGTERM, handler)
+        process.wait()
+
+        signal.signal(signal.SIGINT, original_handler_sigint)
+        signal.signal(signal.SIGTERM, original_handler_sigterm)
+
+        if cancelled:
+            return BuildErrorState.CANCELLED
+
+        if process.stdout is None:
+            log("Error: nix build exited without output", LogLevel.ERROR)
+            return BuildErrorState.FAILED
+
+        output = process.stdout.read().decode("utf-8")
         log(f"Build output: {output}")
 
         if process.returncode != 0:
@@ -155,14 +188,14 @@ class NixosDeploy:
                 f"Error: nix build exited with code {process.returncode}",
                 LogLevel.ERROR,
             )
-            return None
+            return BuildErrorState.FAILED
 
         path = output.strip()
         if os.path.exists(path):
             return path
 
         log("Error: nix build produced no output", LogLevel.ERROR)
-        return None
+        return BuildErrorState.FAILED
 
     def switch_to_configuration(
         self,
@@ -220,7 +253,18 @@ class NixosDeploy:
         self.run_hook("pre", branch_type, mode, commit)
 
         build_output = self.build_configuration(mode != DeployModes.TEST)
-        if not build_output:
+        if build_output == BuildErrorState.CANCELLED:
+            log("nix build was cancelled", LogLevel.WARNING)
+            # do not run hook
+            # do not set DEPLOYED_BRANCH: deployment can be retried
+            return
+
+        # set deployed branch early to prevent rebuilding a broken configuration
+        self.config.git.reset_branch_to(DEPLOYED_BRANCH, commit)
+        if branch_type == BranchType.MAIN:
+            self.config.git.reset_branch_to(DEPLOYED_BRANCH_MAIN, commit)
+
+        if build_output == BuildErrorState.FAILED:
             log("Build failed", LogLevel.ERROR)
             self.run_hook("failed", branch_type, mode, commit)
             return
@@ -289,9 +333,6 @@ class NixosDeploy:
                 self.run_hook("failed", branch_type, mode, commit)
                 return
 
-        self.config.git.reset_branch_to(DEPLOYED_BRANCH, commit)
-        if branch_type == BranchType.MAIN:
-            self.config.git.reset_branch_to(DEPLOYED_BRANCH_MAIN, commit)
         log(f"\nDeployment succeeded: {mode.value}")
         self.run_hook("success", branch_type, mode, commit)
 
