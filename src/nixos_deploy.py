@@ -148,7 +148,7 @@ class NixosDeploy:
 
         process = subprocess.run(command, stdout=subprocess.PIPE)
         output = process.stdout.decode("utf-8")
-        log(output)
+        log(f"Build output: {output}")
 
         if process.returncode != 0:
             log(
@@ -210,6 +210,7 @@ class NixosDeploy:
 
         log(f"Deploying {branch}, {commit} mode {mode}")
         log(self.config.git.get_commit_message(commit))
+        log("") # print newline
         sys.stdout.flush()
 
         self.config.git.run(["checkout", commit.commit_hash])
