@@ -22,6 +22,7 @@
             python3Packages,
             git,
             procps,
+            nix,
           }:
 
           python3Packages.buildPythonApplication {
@@ -43,6 +44,7 @@
                 lib.makeBinPath [
                   git
                   procps
+                  nix
                 ]
               }"
             ];
@@ -98,7 +100,9 @@
 
           package =
             let
-              genericPackage = self.packages.${pkgs.system}.default;
+              genericPackage = self.packages.${pkgs.system}.default.override {
+                nix = config.nix.package;
+              };
             in
             pkgs.stdenvNoCC.mkDerivation {
               name = "nixos-pull-deploy";
