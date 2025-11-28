@@ -71,11 +71,11 @@
       });
 
       checks = forAllSupportedSystems (pkgs: {
-        default = self.packages.${pkgs.system}.default;
+        default = self.packages.${pkgs.stdenv.hostPlatform.system}.default;
       });
 
       devShells = forAllSupportedSystems (pkgs: {
-        default = self.packages.${pkgs.system}.default.overrideAttrs (attrs: {
+        default = self.packages.${pkgs.stdenv.hostPlatform.system}.default.overrideAttrs (attrs: {
           nativeBuildInputs = attrs.nativeBuildInputs ++ [ pkgs.black ];
         });
       });
@@ -100,7 +100,7 @@
 
           package =
             let
-              genericPackage = self.packages.${pkgs.system}.default.override {
+              genericPackage = self.packages.${pkgs.stdenv.hostPlatform.system}.default.override {
                 nix = config.nix.package;
               };
             in
