@@ -179,6 +179,24 @@ null or absolute path
 
 
 
+## services\.nixos-pull-deploy\.settings\.magic_rollback_timeout
+
+
+
+Duration to wait for network to become available after deployment in seconds
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+` 3 `
+
+
+
 ## services\.nixos-pull-deploy\.settings\.origin\.main
 
 

@@ -235,6 +235,12 @@
                     description = "Mode to deploy the testing branch with";
                   };
                 };
+
+                magic_rollback_timeout = lib.mkOption {
+                  type = lib.types.int;
+                  default = 3;
+                  description = "Duration to wait for network to become available after deployment in seconds";
+                };
               };
             };
 

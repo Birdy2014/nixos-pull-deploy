@@ -5,6 +5,7 @@ import os
 import signal
 import subprocess
 import sys
+import time
 import tomllib
 import typing
 from git import *
@@ -25,6 +26,7 @@ class Config:
     hook: str | None
     main_mode: "DeployModes"
     testing_mode: "DeployModes"
+    magic_rollback_timeout: int
     git: GitWrapper
 
     @classmethod
@@ -63,6 +65,7 @@ class Config:
             hook=parsed.get("hook"),
             main_mode=main_mode,
             testing_mode=testing_mode,
+            magic_rollback_timeout=parsed["magic_rollback_timeout"],
             git=GitWrapper(parsed["config_dir"]),
         )
 
@@ -311,9 +314,16 @@ class NixosDeploy:
                 magic_rollback = False
 
         if magic_rollback:
-            try:
-                self.config.git.run(["fetch"])
-            except GitException:
+            for i in range(self.config.magic_rollback_timeout + 1):
+                try:
+                    if i > 0:
+                        log("No network connection - retrying", LogLevel.WARNING)
+                        time.sleep(1)
+                    self.config.git.run(["fetch"])
+                    break
+                except GitException:
+                    pass
+            else:
                 log("No network connection - rolling back", LogLevel.ERROR)
                 if not self.switch_to_configuration(
                     old_generation,

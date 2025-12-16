@@ -33,6 +33,7 @@ class TestNixosDeploy(unittest.TestCase):
             hook=None,
             main_mode=DeployModes.SWITCH,
             testing_mode=DeployModes.TEST,
+            magic_rollback_timeout=0,
             git=GitWrapper(local_repo),
         )
         nixos_deploy = NixosDeploy(config, hostname)
