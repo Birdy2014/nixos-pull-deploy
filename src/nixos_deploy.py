@@ -14,6 +14,7 @@ from logger import *
 
 DEPLOYED_BRANCH = "_deployed"
 DEPLOYED_BRANCH_MAIN = "_deployed_main"
+DEPLOYED_BRANCH_SUCCESS = "_deployed_success"
 
 
 @dataclasses.dataclass()
@@ -127,6 +128,8 @@ class NixosDeploy:
         if hook_path is None:
             return
 
+        deploy_success_commit = self.config.git.get_commit(DEPLOYED_BRANCH_SUCCESS)
+
         hook_env = os.environ.copy()
         hook_env["DEPLOY_STATUS"] = status
         hook_env["DEPLOY_TYPE"] = branch_type.value
@@ -134,6 +137,16 @@ class NixosDeploy:
         hook_env["DEPLOY_COMMIT"] = deploy_commit.commit_hash
         hook_env["DEPLOY_COMMIT_MESSAGE"] = self.config.git.get_commit_message(
             deploy_commit
+        )
+        hook_env["DEPLOY_SUCCESS_COMMIT"] = (
+            deploy_success_commit.commit_hash
+            if deploy_success_commit is not None
+            else ""
+        )
+        hook_env["DEPLOY_SUCCESS_COMMIT_MESSAGE"] = (
+            self.config.git.get_commit_message(deploy_success_commit)
+            if deploy_success_commit is not None
+            else ""
         )
         hook_env["DEPLOY_SCHEDULED"] = "1" if os.getppid() == 1 else "0"
 
@@ -344,6 +357,8 @@ class NixosDeploy:
                 )
                 self.run_hook("failed", branch_type, mode, commit)
                 return
+
+        self.config.git.reset_branch_to(DEPLOYED_BRANCH_SUCCESS, commit)
 
         log(f"\nDeployment succeeded: {mode.value}")
         self.run_hook("success", branch_type, mode, commit)

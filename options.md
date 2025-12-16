@@ -149,6 +149,8 @@ The following environment variables are available:
  - DEPLOY_MODE: Deployment mode, can be one of test, switch, boot, reboot, reboot_on_kernel_change
  - DEPLOY_COMMIT: Hash of the deployed commit
  - DEPLOY_COMMIT_MESSAGE: Message of the deployed commit
+ - DEPLOY_SUCCESS_COMMIT: Hash of the last successfully deployed commit or an empty string
+ - DEPLOY_SUCCESS_COMMIT_MESSAGE: Message of the last successfully deployed commit or an empty string
  - DEPLOY_SCHEDULED: 1 if the deployment is running inside of a systemd service, 0 if it is interactive
 
 
