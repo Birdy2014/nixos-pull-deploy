@@ -61,6 +61,9 @@ def main() -> None:
         default=False,
         help="Ask for the git token if the token file is not accessible",
     )
+    parser.add_argument(
+        "--hostname", help="Use the NixOS configuration for a different host"
+    )
 
     subparsers = parser.add_subparsers(required=True, dest="action")
 
@@ -94,7 +97,7 @@ def main() -> None:
         exit(1)
 
     config = Config.parse(config_file, args.ask_token)
-    hostname = os.uname().nodename
+    hostname = args.hostname or os.uname().nodename
     global nixos_deploy
     nixos_deploy = NixosDeploy(config, hostname)
 
