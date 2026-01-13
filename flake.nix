@@ -243,6 +243,16 @@
                   default = 3;
                   description = "Duration to wait for network to become available after deployment in seconds";
                 };
+
+                build_remotes = lib.mkOption {
+                  type = lib.types.listOf lib.types.str;
+                  default = [ "local" ];
+                  description = "Remotes to evaluate and build the configuration on";
+                  example = [
+                    "root@example.com:123"
+                    "local"
+                  ];
+                };
               };
             };
 

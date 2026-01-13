@@ -34,6 +34,7 @@ class TestNixosDeploy(unittest.TestCase):
             main_mode=DeployModes.SWITCH,
             testing_mode=DeployModes.TEST,
             magic_rollback_timeout=0,
+            build_remotes=[None],
             git=GitWrapper(local_repo),
         )
         nixos_deploy = NixosDeploy(config, hostname)
@@ -61,13 +62,11 @@ class TestNixosDeploy(unittest.TestCase):
 
             def side_effect_build_configuration(
                 add_to_profile: bool,
-            ) -> str | BuildErrorState:
+            ) -> str | CommandState:
                 existing_commit = config.git.get_commit("HEAD")
                 self.assertIsNotNone(existing_commit)
                 self.assertEqual(existing_commit, target_commit)
-                return (
-                    toplevel_store_path if should_succeed else BuildErrorState.CANCELLED
-                )
+                return toplevel_store_path if should_succeed else CommandState.CANCELLED
 
             def side_effect_switch_to_configuration(
                 toplevel_derivation: str,
