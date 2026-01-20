@@ -231,7 +231,7 @@ class NixosDeploy:
         log("")  # print newline
         sys.stdout.flush()
 
-        self.config.git.run(["checkout", commit.commit_hash])
+        self.config.git.run(["checkout", "--force", commit.commit_hash])
 
         old_generation = os.path.realpath("/run/current-system")
 
