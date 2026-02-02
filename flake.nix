@@ -103,6 +103,13 @@
               genericPackage = self.packages.${pkgs.stdenv.hostPlatform.system}.default.override {
                 nix = config.nix.package;
               };
+
+              makeWrapperArgs = [
+                "--set DEPLOY_CONFIG ${configFile}"
+              ]
+              ++ (lib.optional (cfg.settings.build_remotes != [ "local" ])
+                "--prefix PATH : ${lib.makeBinPath [ pkgs.openssh ]}"
+              );
             in
             pkgs.stdenvNoCC.mkDerivation {
               name = "nixos-pull-deploy";
@@ -114,7 +121,7 @@
               installPhase = ''
                 mkdir -p $out/bin
                 makeWrapper ${genericPackage}/bin/nixos-pull-deploy $out/bin/nixos-pull-deploy \
-                  --set DEPLOY_CONFIG "${configFile}"
+                  ${lib.concatStringsSep " " makeWrapperArgs}
               '';
 
               meta.mainProgram = "nixos-pull-deploy";
