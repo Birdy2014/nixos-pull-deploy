@@ -166,6 +166,24 @@ one of “test”, “switch”, “boot”, “reboot”, “reboot_on_kernel_c
 
 
 
+## services\.nixos-pull-deploy\.settings\.fetch_retries
+
+
+
+How often to retry fetching from the remote
+
+
+
+*Type:*
+signed integer
+
+
+
+*Default:*
+` 1 `
+
+
+
 ## services\.nixos-pull-deploy\.settings\.hook
 
 

@@ -28,6 +28,7 @@ class Config:
     main_mode: "DeployModes"
     testing_mode: "DeployModes"
     magic_rollback_timeout: int
+    fetch_retries: int
     build_remotes: list[Remote | None]
     git: GitWrapper
 
@@ -68,6 +69,7 @@ class Config:
             main_mode=main_mode,
             testing_mode=testing_mode,
             magic_rollback_timeout=parsed["magic_rollback_timeout"],
+            fetch_retries=parsed["fetch_retries"],
             build_remotes=list(
                 map(
                     lambda host: Remote.parse(host) if host != "local" else None,
@@ -302,16 +304,9 @@ class NixosDeploy:
                 magic_rollback = False
 
         if magic_rollback:
-            for i in range(self.config.magic_rollback_timeout + 1):
-                try:
-                    if i > 0:
-                        log("No network connection - retrying", LogLevel.WARNING)
-                        time.sleep(1)
-                    self.config.git.run(["fetch"])
-                    break
-                except GitException:
-                    pass
-            else:
+            try:
+                self.config.git.fetch(self.config.magic_rollback_timeout)
+            except GitException:
                 log("No network connection - rolling back", LogLevel.ERROR)
                 if not self.switch_to_configuration(
                     old_generation,
@@ -360,7 +355,7 @@ class NixosDeploy:
     def get_commit_to_deploy(self) -> DeployTarget:
         main_branch = "origin/" + self.config.main_branch
 
-        self.config.git.run(["fetch", "--prune"])
+        self.config.git.fetch(self.config.fetch_retries)
 
         def filter_hostname_branch(branch: str) -> bool:
             if not branch.startswith(f"origin/{self.config.testing_prefix}"):

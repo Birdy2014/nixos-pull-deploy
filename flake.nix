@@ -251,6 +251,12 @@
                   description = "Duration to wait for network to become available after deployment in seconds";
                 };
 
+                fetch_retries = lib.mkOption {
+                  type = lib.types.int;
+                  default = 1;
+                  description = "How often to retry fetching from the remote";
+                };
+
                 build_remotes = lib.mkOption {
                   type = lib.types.listOf lib.types.str;
                   default = [ "local" ];

@@ -34,6 +34,7 @@ class TestNixosDeploy(unittest.TestCase):
             main_mode=DeployModes.SWITCH,
             testing_mode=DeployModes.TEST,
             magic_rollback_timeout=0,
+            fetch_retries=0,
             build_remotes=[None],
             git=GitWrapper(local_repo),
         )

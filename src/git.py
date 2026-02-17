@@ -1,5 +1,7 @@
-import subprocess
 import os
+import subprocess
+import time
+from logger import *
 
 
 class GitCommit:
@@ -17,9 +19,13 @@ class GitCommit:
 
 class GitException(Exception):
     code: int
+    stdout: str
+    stderr: str
 
     def __init__(self, code: int, command: list[str], stdout: str, stderr: str) -> None:
         self.code = code
+        self.stdout = stdout
+        self.stderr = stderr
         super().__init__(
             f"Git failed with code {code}\ncommand: {" ".join(command)}\nstdout: {stdout}\nstderr: {stderr}"
         )
@@ -46,6 +52,26 @@ class GitWrapper:
             stderr = process.stderr.decode("utf-8")
             raise GitException(process.returncode, full_command, stdout, stderr)
         return process.stdout.decode("utf-8").strip()
+
+    def fetch(self, retries: int):
+        last_exception = None
+        for i in range(retries + 1):
+            try:
+                if i > 0:
+                    log("No network connection - retrying", LogLevel.WARNING)
+                    time.sleep(1)
+                self.run(["fetch", "--prune"])
+                break
+            except GitException as exception:
+                last_exception = exception
+                log(
+                    f"git fetch failed with code {exception.code}\nstdout: {exception.stdout}\nstderr: {exception.stderr}",
+                    LogLevel.WARNING,
+                )
+        else:
+            if last_exception is None:
+                raise Exception()
+            raise last_exception
 
     def get_commit(self, branch: str) -> GitCommit | None:
         try:
