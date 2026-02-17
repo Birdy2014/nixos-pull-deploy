@@ -18,9 +18,11 @@ class GitCommit:
 class GitException(Exception):
     code: int
 
-    def __init__(self, code: int, command: list[str]) -> None:
+    def __init__(self, code: int, command: list[str], stdout: str, stderr: str) -> None:
         self.code = code
-        super().__init__(f"Git failed with code {code}\ncommand: {" ".join(command)}")
+        super().__init__(
+            f"Git failed with code {code}\ncommand: {" ".join(command)}\nstdout: {stdout}\nstderr: {stderr}"
+        )
 
 
 class GitWrapper:
@@ -40,7 +42,9 @@ class GitWrapper:
         process_env["GIT_COMMITTER_EMAIL"] = "deploy-user@localhost"
         process = subprocess.run(full_command, capture_output=True, env=process_env)
         if process.returncode != 0:
-            raise GitException(process.returncode, full_command)
+            stdout = process.stdout.decode("utf-8")
+            stderr = process.stderr.decode("utf-8")
+            raise GitException(process.returncode, full_command, stdout, stderr)
         return process.stdout.decode("utf-8").strip()
 
     def get_commit(self, branch: str) -> GitCommit | None:
