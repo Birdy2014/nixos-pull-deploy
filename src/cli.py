@@ -10,7 +10,7 @@ from logger import *
 
 def is_rebuilding() -> bool:
     process = subprocess.run(
-        ["pgrep", "-x", "nixos-rebuild"],
+        ["systemctl", "is-active", "nixos-pull-deploy-switch-to-configuration"],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )

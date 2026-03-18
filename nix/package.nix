@@ -2,7 +2,6 @@
   lib,
   python3Packages,
   git,
-  procps,
   nix,
 }:
 
@@ -22,7 +21,6 @@ python3Packages.buildPythonApplication {
 
   propagatedBuildInputs = map lib.getBin [
     git
-    procps
     nix
   ];
 
