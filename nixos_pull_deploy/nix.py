@@ -5,7 +5,7 @@ import re
 import shlex
 import signal
 import subprocess
-from logger import *
+from .logger import *
 
 
 class CommandState(enum.Enum):

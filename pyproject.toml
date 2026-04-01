@@ -7,4 +7,7 @@ name = "nixos-pull-deploy"
 version = "0.1.0"
 
 [project.scripts]
-nixos-pull-deploy = "cli:main"
+nixos-pull-deploy = "nixos_pull_deploy.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["nixos_pull_deploy"]

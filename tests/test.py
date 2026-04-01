@@ -3,8 +3,8 @@ import unittest.mock
 import os
 import tempfile
 import time
-from src.git import *
-from src.nixos_deploy import *
+from nixos_pull_deploy.git import *
+from nixos_pull_deploy.nixos_deploy import *
 
 
 # TODO: test hooks

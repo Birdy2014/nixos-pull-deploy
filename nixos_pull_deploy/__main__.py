@@ -3,9 +3,9 @@
 import argparse
 import os
 import subprocess
-from git import *
-from nixos_deploy import *
-from logger import *
+from .git import *
+from .nixos_deploy import *
+from .logger import *
 
 
 def is_rebuilding() -> bool:

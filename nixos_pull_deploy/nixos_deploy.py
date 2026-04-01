@@ -7,9 +7,9 @@ import sys
 import time
 import tomllib
 import typing
-from git import *
-from logger import *
-from nix import *
+from .git import *
+from .logger import *
+from .nix import *
 
 
 DEPLOYED_BRANCH = "_deployed"
