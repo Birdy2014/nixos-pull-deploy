@@ -130,3 +130,7 @@ class GitWrapper:
         return list(
             filter(lambda branch: branch.startswith("origin/"), output.split("\n"))
         )
+
+    def get_distance(self, a: str, b: str) -> int:
+        output = self.run(["rev-list", "--count", f"{a}..{b}"])
+        return int(output)

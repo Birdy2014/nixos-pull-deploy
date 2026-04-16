@@ -49,7 +49,15 @@ def action_check() -> None:
         log(nixos_deploy.config.git.get_commit_message(commit))
         return
 
-    log(f"New commit available on {target.branch}")
+    new_commit_count = nixos_deploy.config.git.get_distance(
+        DEPLOYED_BRANCH, target.branch
+    )
+    if new_commit_count > 0:
+        log(
+            f"{new_commit_count} new commit{"s" if new_commit_count > 1 else ""} available on {target.branch}"
+        )
+    else:
+        log(f"Newest available commit is older than deployed")
 
 
 def main() -> None:
