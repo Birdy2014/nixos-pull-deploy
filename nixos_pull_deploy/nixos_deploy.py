@@ -270,7 +270,10 @@ class NixosDeploy:
             DeployModes.TEST: SwitchToConfigurationMode.TEST,
         }.get(mode, SwitchToConfigurationMode.BOOT)
 
-        self.switch_to_configuration(build_output, switch_mode, False)
+        if not self.switch_to_configuration(build_output, switch_mode, False):
+            log("switch-to-configuration failed", LogLevel.ERROR)
+            self.run_hook("failed", branch_type, mode, commit)
+            return
 
         should_reboot = False
 
