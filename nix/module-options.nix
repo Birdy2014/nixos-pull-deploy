@@ -98,8 +98,8 @@
           example = ''
             pkgs.writeShellScript "hook.sh" '''
               if [[ "$DEPLOY_STATUS" == 'success' ]] then
-                echo "$DEPLOY_MODE deployment of commit $DEPLOY_COMMIT succeeded";;
-              elif [[ "$DEPLOY_STATUS" == 'failed' ]]
+                echo "$DEPLOY_MODE deployment of commit $DEPLOY_COMMIT succeeded"
+              elif [[ "$DEPLOY_STATUS" == 'failed' ]] then
                 echo 'deployment failed'
               fi
             '''

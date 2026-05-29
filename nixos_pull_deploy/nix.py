@@ -178,7 +178,7 @@ def nix_archive(flake: str) -> str:
         raise NixException(
             CommandState.FAILED,
             process.returncode,
-            process.stderr.decode("utf"),
+            process.stderr.decode("utf-8"),
             command,
         )
     output = process.stdout.decode("utf-8").strip()
@@ -194,6 +194,6 @@ def nix_set_system_profile(store_path: str):
         raise NixException(
             CommandState.FAILED,
             process.returncode,
-            process.stderr.decode("utf"),
+            process.stderr.decode("utf-8"),
             command,
         )
