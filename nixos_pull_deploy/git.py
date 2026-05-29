@@ -113,6 +113,8 @@ class GitWrapper:
         except GitException as exception:
             if exception.code == 1:
                 self.run(["branch", branch, target.commit_hash])
+            else:
+                raise exception
         else:
             self.run(["reset", "--hard", target.commit_hash])
 

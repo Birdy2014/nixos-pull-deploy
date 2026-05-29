@@ -173,6 +173,7 @@ def nix_copy(derivation: str, from_host: Remote | None, to_host: Remote | None):
                 exception.stderr,
                 exception.command,
             )
+        raise exception
 
 
 def nix_archive(flake: str) -> str:
