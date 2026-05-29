@@ -92,7 +92,11 @@ def run_nix_cancelable(command: list[str], remote: Remote | None = None) -> str:
     original_handler_sigterm = signal.getsignal(signal.SIGTERM)
 
     process = subprocess.Popen(
-        command, stdout=subprocess.PIPE, stdin=None, start_new_session=True
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        stdin=None,
+        start_new_session=True,
     )
 
     def handler(signum, _):
@@ -102,13 +106,13 @@ def run_nix_cancelable(command: list[str], remote: Remote | None = None) -> str:
 
     signal.signal(signal.SIGINT, handler)
     signal.signal(signal.SIGTERM, handler)
-    process.wait()
+    stdout_bytes, stderr_bytes = process.communicate()
 
     signal.signal(signal.SIGINT, original_handler_sigint)
     signal.signal(signal.SIGTERM, original_handler_sigterm)
 
-    output = process.stdout.read().decode("utf-8") if process.stdout is not None else ""
-    stderr = process.stderr.read().decode("utf-8") if process.stderr is not None else ""
+    output = stdout_bytes.decode("utf-8")
+    stderr = stderr_bytes.decode("utf-8")
 
     if cancelled:
         state = CommandState.CANCELLED
