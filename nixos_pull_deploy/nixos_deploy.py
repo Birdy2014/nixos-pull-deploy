@@ -193,9 +193,10 @@ class NixosDeploy:
         # based on nixos-rebuild
         command = [
             "systemd-run",
-            "-E"
+            "-E",
             "LOCALE_ARCHIVE",  # Will be set to new value early in switch-to-configuration script, but interpreter starts out with old value
-            "-E" f"NIXOS_INSTALL_BOOTLOADER={"1" if install_bootloader else "0"}",
+            "-E",
+            f"NIXOS_INSTALL_BOOTLOADER={"1" if install_bootloader else "0"}",
             "--collect",
             "--no-ask-password",
             "--pipe",
