@@ -55,7 +55,7 @@ class Remote:
     @classmethod
     def parse(cls, text: str) -> "Remote | None":
         p = re.compile(
-            "^(([a-z]+@([a-zA-Z0-9.\\-]+|(\\[[a-zA-Z0-9:]+\\])))(:([1-9]+))?)$", re.M
+            "^(([a-z]+@([a-zA-Z0-9.\\-]+|(\\[[a-zA-Z0-9:]+\\])))(:([0-9]+))?)$", re.M
         )
         match = p.match(text)
         if match is None:
