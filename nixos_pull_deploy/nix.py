@@ -177,7 +177,7 @@ def nix_copy(derivation: str, from_host: Remote | None, to_host: Remote | None):
 
 
 def nix_archive(flake: str) -> str:
-    command = ["nix", "flake", "archive", "--json", flake]
+    command = ["nix", "flake", "archive", "--json", "--no-update-lock-file", flake]
     process = subprocess.run(command, capture_output=True)
     if process.returncode != 0:
         raise NixException(
