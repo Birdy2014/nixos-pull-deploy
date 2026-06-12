@@ -17,6 +17,19 @@ def is_rebuilding() -> bool:
     return process.returncode == 0
 
 
+def print_up_to_date_commit_info(target: DeployTarget):
+    assert not target.is_new
+
+    commit = nixos_deploy.config.git.get_commit(target.branch)
+    assert commit is not None
+    last_successful_commit = nixos_deploy.config.git.get_commit(DEPLOYED_BRANCH_SUCCESS)
+    if commit == last_successful_commit:
+        log(f"Already on newest {target.branch} commit {commit}:")
+    else:
+        log(f"Previously failed to deploy newest {target.branch} commit {commit}:")
+    log(nixos_deploy.config.git.get_commit_message(commit))
+
+
 def action_run(
     force_rebuild: bool, magic_rollback: bool, deploy_mode_override: DeployModes | None
 ) -> None:
@@ -26,10 +39,7 @@ def action_run(
 
     target = nixos_deploy.get_commit_to_deploy()
     if not force_rebuild and not target.is_new:
-        commit = nixos_deploy.config.git.get_commit(target.branch)
-        assert commit is not None
-        log(f"Already on newest {target.branch} commit {commit}:")
-        log(nixos_deploy.config.git.get_commit_message(commit))
+        print_up_to_date_commit_info(target)
         return
 
     nixos_deploy.deploy(
@@ -43,10 +53,7 @@ def action_run(
 def action_check() -> None:
     target = nixos_deploy.get_commit_to_deploy()
     if not target.is_new:
-        commit = nixos_deploy.config.git.get_commit(target.branch)
-        assert commit is not None
-        log(f"Already on newest {target.branch} commit {commit}:")
-        log(nixos_deploy.config.git.get_commit_message(commit))
+        print_up_to_date_commit_info(target)
         return
 
     new_commit_count = nixos_deploy.config.git.get_distance(
