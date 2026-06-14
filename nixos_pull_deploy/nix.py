@@ -1,10 +1,13 @@
 import dataclasses
 import enum
 import json
+import os
 import re
+import select
 import shlex
 import signal
 import subprocess
+import sys
 from .logger import *
 
 
@@ -65,14 +68,38 @@ class Remote:
         return cls(host=match.group(2), port=int(match.group(6) or 22))
 
 
-@dataclasses.dataclass
-class CommandOutput:
-    state: CommandState
-    returncode: int
-    stdout: str = ""
+def communicate_print(
+    process: subprocess.Popen[bytes], print_stdout: bool
+) -> tuple[str, str]:
+    assert process.stdout is not None
+    assert process.stderr is not None
+
+    stdout = ""
+    stderr = ""
+
+    dataend = False
+    while (process.returncode is None) or (not dataend):
+        process.poll()
+        ready = select.select([process.stdout, process.stderr], [], [])
+        if process.stderr in ready[0]:
+            data = os.read(process.stderr.fileno(), 1024).decode("utf-8")
+            stderr += data
+            sys.stderr.write(data)
+        if process.stdout in ready[0]:
+            data = os.read(process.stdout.fileno(), 1024).decode("utf-8")
+            if len(data) > 0:
+                stdout += data
+                if print_stdout:
+                    sys.stdout.write(data)
+            else:
+                dataend = True
+
+    return stdout, stderr
 
 
-def run_nix_cancelable(command: list[str], remote: Remote | None = None) -> str:
+def run_nix_cancelable(
+    command: list[str], remote: Remote | None = None, print_stdout: bool = True
+) -> str:
     command = ["nix", "--extra-experimental-features", "nix-command flakes", *command]
 
     if remote is not None:
@@ -99,6 +126,9 @@ def run_nix_cancelable(command: list[str], remote: Remote | None = None) -> str:
         start_new_session=True,
     )
 
+    assert process.stdout is not None
+    assert process.stderr is not None
+
     def handler(signum, _):
         nonlocal cancelled
         cancelled = True
@@ -106,13 +136,11 @@ def run_nix_cancelable(command: list[str], remote: Remote | None = None) -> str:
 
     signal.signal(signal.SIGINT, handler)
     signal.signal(signal.SIGTERM, handler)
-    stdout_bytes, stderr_bytes = process.communicate()
+
+    stdout, stderr = communicate_print(process, print_stdout)
 
     signal.signal(signal.SIGINT, original_handler_sigint)
     signal.signal(signal.SIGTERM, original_handler_sigterm)
-
-    output = stdout_bytes.decode("utf-8")
-    stderr = stderr_bytes.decode("utf-8")
 
     if cancelled:
         state = CommandState.CANCELLED
@@ -125,7 +153,7 @@ def run_nix_cancelable(command: list[str], remote: Remote | None = None) -> str:
             LogLevel.ERROR,
         )
     else:
-        return output
+        return stdout
 
     raise NixException(
         state=state, code=process.returncode, stderr=stderr, command=command
@@ -177,16 +205,9 @@ def nix_copy(derivation: str, from_host: Remote | None, to_host: Remote | None):
 
 
 def nix_archive(flake: str) -> str:
-    command = ["nix", "flake", "archive", "--json", "--no-update-lock-file", flake]
-    process = subprocess.run(command, capture_output=True)
-    if process.returncode != 0:
-        raise NixException(
-            CommandState.FAILED,
-            process.returncode,
-            process.stderr.decode("utf-8"),
-            command,
-        )
-    output = process.stdout.decode("utf-8").strip()
+    output = run_nix_cancelable(
+        ["flake", "archive", "--json", "--no-update-lock-file", flake], None, False
+    )
     parsed = json.loads(output)
     return parsed["path"]
 
