@@ -1,10 +1,9 @@
 import dataclasses
 import enum
-import json
+import filecmp
 import os
 import subprocess
 import sys
-import time
 import tomllib
 import typing
 from .git import *
@@ -25,8 +24,8 @@ class Config:
     testing_prefix: str
     testing_separator: str
     hook: str | None
-    main_mode: "DeployModes"
-    testing_mode: "DeployModes"
+    main_mode: "BranchDeployModes"
+    testing_mode: "BranchDeployModes"
     magic_rollback_timeout: int
     fetch_retries: int
     git: GitWrapper
@@ -54,9 +53,7 @@ class Config:
         if token is not None:
             origin_url = origin_url.replace("https://", f"https://git:{token}@")
 
-        modes = parsed.get("deploy_modes", {})
-        main_mode = DeployModes(modes.get("main", DeployModes.SWITCH))
-        testing_mode = DeployModes(modes.get("testing", DeployModes.TEST))
+        modes: dict[str, dict[str, str]] = parsed["deploy_modes"]
 
         return cls(
             config_dir=parsed["config_dir"],
@@ -65,17 +62,19 @@ class Config:
             testing_prefix=origin["testing_prefix"],
             testing_separator=origin["testing_separator"],
             hook=parsed.get("hook"),
-            main_mode=main_mode,
-            testing_mode=testing_mode,
+            main_mode=BranchDeployModes.parse(modes["main"]),
+            testing_mode=BranchDeployModes.parse(modes["testing"]),
             magic_rollback_timeout=parsed["magic_rollback_timeout"],
             fetch_retries=parsed["fetch_retries"],
             git=GitWrapper(parsed["config_dir"]),
         )
 
-    def get_deploy_mode(self, branch_type: "BranchType") -> "DeployModes":
+    def get_deploy_mode(
+        self, branch_type: "BranchType", inhibition: "InhibitionStatus"
+    ) -> "DeployModes":
         return {
-            BranchType.MAIN: self.main_mode,
-            BranchType.TESTING: self.testing_mode,
+            BranchType.MAIN: self.main_mode.get(inhibition),
+            BranchType.TESTING: self.testing_mode.get(inhibition),
         }[branch_type]
 
 
@@ -84,7 +83,36 @@ class DeployModes(enum.Enum):
     SWITCH = "switch"
     BOOT = "boot"
     REBOOT = "reboot"
-    REBOOT_ON_KERNEL_CHANGE = "reboot_on_kernel_change"
+
+
+class InhibitionStatus(enum.Enum):
+    NORMAL = "normal"
+    KERNEL_CHANGED = "kernel_changed"
+    INHIBITED = "inhibited"
+
+
+@dataclasses.dataclass
+class BranchDeployModes:
+    normal: DeployModes
+    kernel_changed: DeployModes
+    inhibited: DeployModes
+
+    @classmethod
+    def parse(cls, config: dict[str, str]) -> "BranchDeployModes":
+        return cls(
+            normal=DeployModes(config["normal"]),
+            kernel_changed=DeployModes(config["kernel_changed"]),
+            inhibited=DeployModes(config["inhibited"]),
+        )
+
+    def get(self, inhibition: InhibitionStatus) -> DeployModes:
+        match inhibition:
+            case InhibitionStatus.NORMAL:
+                return self.normal
+            case InhibitionStatus.KERNEL_CHANGED:
+                return self.kernel_changed
+            case InhibitionStatus.INHIBITED:
+                return self.inhibited
 
 
 class SwitchToConfigurationMode(enum.Enum):
@@ -117,7 +145,7 @@ class NixosDeploy:
         self,
         status: typing.Literal["pre", "success", "failed"],
         branch_type: BranchType,
-        mode: DeployModes,
+        mode: DeployModes | None,
         deploy_commit: GitCommit,
     ) -> None:
         hook_path = self.config.hook
@@ -130,7 +158,7 @@ class NixosDeploy:
         hook_env = os.environ.copy()
         hook_env["DEPLOY_STATUS"] = status
         hook_env["DEPLOY_TYPE"] = branch_type.value
-        hook_env["DEPLOY_MODE"] = mode.value
+        hook_env["DEPLOY_MODE"] = mode.value if mode is not None else ""
         hook_env["DEPLOY_COMMIT"] = deploy_commit.commit_hash
         hook_env["DEPLOY_COMMIT_MESSAGE"] = self.config.git.get_commit_message(
             deploy_commit
@@ -151,11 +179,9 @@ class NixosDeploy:
         if process.returncode != 0:
             log(f"hook exited with code {process.returncode}", LogLevel.ERROR)
 
-    def build_configuration(self, add_to_profile: bool) -> str:
+    def build_configuration(self) -> str:
         system_path = f'{self.config.config_dir}#nixosConfigurations."{self.hostname}".config.system.build.toplevel'
         build_output = nix_build(system_path)
-        if add_to_profile:
-            nix_set_system_profile(build_output)
         return build_output
 
     def switch_to_configuration(
@@ -171,6 +197,8 @@ class NixosDeploy:
             "LOCALE_ARCHIVE",  # Will be set to new value early in switch-to-configuration script, but interpreter starts out with old value
             "-E",
             f"NIXOS_INSTALL_BOOTLOADER={"1" if install_bootloader else "0"}",
+            "-E",
+            "NIXOS_NO_CHECK=1",
             "--collect",
             "--no-ask-password",
             "--pipe",
@@ -185,6 +213,23 @@ class NixosDeploy:
         process = subprocess.run(command)
         return process.returncode == 0
 
+    def get_inhibition(self, new_configuration: str) -> InhibitionStatus:
+        def paths_differ(path: str) -> bool:
+            return os.path.realpath(f"/run/booted-system/{path}") != os.path.realpath(
+                f"{new_configuration}/{path}"
+            )
+
+        if not filecmp.cmp(
+            "/run/booted-system/switch-inhibitors",
+            f"{new_configuration}/switch-inhibitors",
+        ):
+            return InhibitionStatus.INHIBITED
+
+        if any(map(paths_differ, ["kernel", "kernel-modules", "initrd"])):
+            return InhibitionStatus.KERNEL_CHANGED
+
+        return InhibitionStatus.NORMAL
+
     def deploy(
         self,
         branch: str,
@@ -197,34 +242,21 @@ class NixosDeploy:
             log(f"No commit on branch {branch}", LogLevel.ERROR)
             exit(1)
 
-        mode = (
-            self.config.get_deploy_mode(branch_type)
-            if deploy_mode_override is None
-            else deploy_mode_override
-        )
+        self.config.git.run(["checkout", "--force", commit.commit_hash])
 
-        log(f"Deploying {branch}, {commit} mode {mode}")
+        log(f"Building {commit} on branch {branch}")
         log(self.config.git.get_commit_message(commit))
         log("")  # print newline
         sys.stdout.flush()
 
-        self.config.git.run(["checkout", "--force", commit.commit_hash])
-
-        old_generation = os.path.realpath("/run/current-system")
-
-        self.run_hook("pre", branch_type, mode, commit)
+        self.run_hook("pre", branch_type, None, commit)
 
         build_output = None
         try:
-            build_output = self.build_configuration(mode != DeployModes.TEST)
+            build_output = self.build_configuration()
         except NixException as exception:
             if exception.state == CommandState.CANCELLED:
                 log("nix build was cancelled", LogLevel.WARNING)
-                # do not run hook
-                # do not set DEPLOYED_BRANCH: deployment can be retried
-                return
-            if exception.state == CommandState.CONNECTION_FAILED:
-                log("failed to connect to build hosts", LogLevel.ERROR)
                 # do not run hook
                 # do not set DEPLOYED_BRANCH: deployment can be retried
                 return
@@ -236,8 +268,24 @@ class NixosDeploy:
 
         if build_output is None:
             log("Build failed", LogLevel.ERROR)
-            self.run_hook("failed", branch_type, mode, commit)
+            self.run_hook("failed", branch_type, None, commit)
             return
+
+        inhibition = self.get_inhibition(build_output)
+        mode = (
+            self.config.get_deploy_mode(branch_type, inhibition)
+            if deploy_mode_override is None
+            else deploy_mode_override
+        )
+
+        log(f"Deploying with mode {mode}, {inhibition}")
+        log("")  # print newline
+        sys.stdout.flush()
+
+        if mode != DeployModes.TEST:
+            nix_set_system_profile(build_output)
+
+        old_generation = os.path.realpath("/run/current-system")
 
         switch_mode = {
             DeployModes.SWITCH: SwitchToConfigurationMode.SWITCH,
@@ -257,29 +305,6 @@ class NixosDeploy:
         if mode == DeployModes.REBOOT:
             should_reboot = True
             magic_rollback = False
-
-        if mode == DeployModes.REBOOT_ON_KERNEL_CHANGE:
-            assert isinstance(build_output, str)
-
-            with open("/run/booted-system/boot.json", "r") as f:
-                booted_system_bootspec = json.load(f).get("org.nixos.bootspec.v1")
-            with open(f"{build_output}/boot.json", "r") as f:
-                new_system_bootspec = json.load(f).get("org.nixos.bootspec.v1")
-
-            if (
-                booted_system_bootspec["initrd"] == new_system_bootspec["initrd"]
-                and booted_system_bootspec["kernel"] == new_system_bootspec["kernel"]
-            ):
-                log("Activating new configuration")
-                if not self.switch_to_configuration(
-                    build_output, SwitchToConfigurationMode.TEST, False
-                ):
-                    log("Activation failed", LogLevel.ERROR)
-                    self.run_hook("failed", branch_type, mode, commit)
-                    return
-            else:
-                should_reboot = True
-                magic_rollback = False
 
         if magic_rollback:
             try:

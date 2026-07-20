@@ -3,6 +3,7 @@ import unittest.mock
 import os
 import tempfile
 import time
+import nixos_pull_deploy.nix as nix
 from nixos_pull_deploy.git import *
 from nixos_pull_deploy.nixos_deploy import *
 
@@ -11,7 +12,15 @@ from nixos_pull_deploy.nixos_deploy import *
 class TestNixosDeploy(unittest.TestCase):
     @unittest.mock.patch.object(NixosDeploy, "build_configuration")
     @unittest.mock.patch.object(NixosDeploy, "switch_to_configuration")
-    def test(self, mock_switch_to_configuration, mock_build_configuration) -> None:
+    @unittest.mock.patch("nixos_pull_deploy.nixos_deploy.nix_set_system_profile")
+    @unittest.mock.patch.object(NixosDeploy, "get_inhibition")
+    def test(
+        self,
+        mock_get_inhibition,
+        mock_nix_set_system_profile,
+        mock_switch_to_configuration,
+        mock_build_configuration,
+    ) -> None:
         tmp_dir = tempfile.TemporaryDirectory()
         local_repo = f"{tmp_dir.name}/repo"
         origin_repo = f"{tmp_dir.name}/origin-repo"
@@ -31,8 +40,12 @@ class TestNixosDeploy(unittest.TestCase):
             testing_prefix="testing/",
             testing_separator="/",
             hook=None,
-            main_mode=DeployModes.SWITCH,
-            testing_mode=DeployModes.TEST,
+            main_mode=BranchDeployModes(
+                DeployModes.SWITCH, DeployModes.SWITCH, DeployModes.SWITCH
+            ),
+            testing_mode=BranchDeployModes(
+                DeployModes.TEST, DeployModes.TEST, DeployModes.SWITCH
+            ),
             magic_rollback_timeout=0,
             fetch_retries=0,
             git=GitWrapper(local_repo),
@@ -60,9 +73,7 @@ class TestNixosDeploy(unittest.TestCase):
             mock_build_configuration.reset_mock()
             mock_switch_to_configuration.reset_mock()
 
-            def side_effect_build_configuration(
-                add_to_profile: bool,
-            ) -> str | CommandState:
+            def side_effect_build_configuration() -> str | CommandState:
                 existing_commit = config.git.get_commit("HEAD")
                 self.assertIsNotNone(existing_commit)
                 self.assertEqual(existing_commit, target_commit)
@@ -81,7 +92,9 @@ class TestNixosDeploy(unittest.TestCase):
                 side_effect_switch_to_configuration
             )
 
-            mode = config.get_deploy_mode(branch_type)
+            mock_get_inhibition.side_effect = lambda _: InhibitionStatus.NORMAL
+
+            mode = config.get_deploy_mode(branch_type, InhibitionStatus.NORMAL)
             rebuild_mode = {
                 DeployModes.SWITCH: SwitchToConfigurationMode.SWITCH,
                 DeployModes.TEST: SwitchToConfigurationMode.TEST,
@@ -90,9 +103,7 @@ class TestNixosDeploy(unittest.TestCase):
             nixos_deploy.deploy(
                 chosen_target.branch, chosen_target.branch_type, False, None
             )
-            mock_build_configuration.assert_called_once_with(
-                rebuild_mode != SwitchToConfigurationMode.TEST
-            )
+            mock_build_configuration.assert_called_once()
             mock_switch_to_configuration.assert_called_once_with(
                 toplevel_store_path, rebuild_mode, False
             )

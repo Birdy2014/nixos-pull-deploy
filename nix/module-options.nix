@@ -1,16 +1,18 @@
 {
+  config,
   lib,
   ...
 }:
 {
   options.services.nixos-pull-deploy =
     let
+      cfg = config.services.nixos-pull-deploy;
+
       deploy_modes = [
         "test"
         "switch"
         "boot"
         "reboot"
-        "reboot_on_kernel_change"
       ];
     in
     {
@@ -88,7 +90,7 @@
               - success: deployment succeeded
               - failed: deployment failed (either evaluation or build failure or it was automatically rolled back)
             - DEPLOY_TYPE: Type of branch that is being deployed, either "main" or "testing"
-            - DEPLOY_MODE: Deployment mode, can be one of ${lib.concatStringsSep ", " deploy_modes}
+            - DEPLOY_MODE: Deployment mode, can be one of ${lib.concatStringsSep ", " deploy_modes}; only set if status is success
             - DEPLOY_COMMIT: Hash of the deployed commit
             - DEPLOY_COMMIT_MESSAGE: Message of the deployed commit
             - DEPLOY_SUCCESS_COMMIT: Hash of the last successfully deployed commit or an empty string
@@ -106,19 +108,32 @@
           '';
         };
 
-        deploy_modes = {
-          main = lib.mkOption {
-            type = lib.types.enum deploy_modes;
-            default = "switch";
-            description = "Mode to deploy the main branch with";
-          };
+        deploy_modes =
+          let
+            mode_type = branch: {
+              normal = lib.mkOption {
+                type = lib.types.enum deploy_modes;
+                default = if branch == "main" then "switch" else "test";
+                description = "Mode to deploy the ${branch} branch with";
+              };
 
-          testing = lib.mkOption {
-            type = lib.types.enum deploy_modes;
-            default = "test";
-            description = "Mode to deploy the testing branch with";
+              kernel_changed = lib.mkOption {
+                type = lib.types.enum deploy_modes;
+                default = cfg.settings.deploy_modes.${branch}.normal;
+                description = "Mode to deploy the ${branch} branch with if the kernel, kernel-modules or initrd changed";
+              };
+
+              inhibited = lib.mkOption {
+                type = lib.types.enum deploy_modes;
+                default = "boot";
+                description = "Mode to deploy the ${branch} branch with if switch inhibitors don't match";
+              };
+            };
+          in
+          {
+            main = mode_type "main";
+            testing = mode_type "testing";
           };
-        };
 
         magic_rollback_timeout = lib.mkOption {
           type = lib.types.int;

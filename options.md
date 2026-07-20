@@ -96,16 +96,34 @@ string
 
 
 
-## services\.nixos-pull-deploy\.settings\.deploy_modes\.main
+## services\.nixos-pull-deploy\.settings\.deploy_modes\.main\.inhibited
 
 
 
-Mode to deploy the main branch with
+Mode to deploy the main branch with if switch inhibitors don’t match
 
 
 
 *Type:*
-one of “test”, “switch”, “boot”, “reboot”, “reboot_on_kernel_change”
+one of “test”, “switch”, “boot”, “reboot”
+
+
+
+*Default:*
+` "boot" `
+
+
+
+## services\.nixos-pull-deploy\.settings\.deploy_modes\.main\.kernel_changed
+
+
+
+Mode to deploy the main branch with if the kernel, kernel-modules or initrd changed
+
+
+
+*Type:*
+one of “test”, “switch”, “boot”, “reboot”
 
 
 
@@ -114,7 +132,61 @@ one of “test”, “switch”, “boot”, “reboot”, “reboot_on_kernel_c
 
 
 
-## services\.nixos-pull-deploy\.settings\.deploy_modes\.testing
+## services\.nixos-pull-deploy\.settings\.deploy_modes\.main\.normal
+
+
+
+Mode to deploy the main branch with
+
+
+
+*Type:*
+one of “test”, “switch”, “boot”, “reboot”
+
+
+
+*Default:*
+` "switch" `
+
+
+
+## services\.nixos-pull-deploy\.settings\.deploy_modes\.testing\.inhibited
+
+
+
+Mode to deploy the testing branch with if switch inhibitors don’t match
+
+
+
+*Type:*
+one of “test”, “switch”, “boot”, “reboot”
+
+
+
+*Default:*
+` "boot" `
+
+
+
+## services\.nixos-pull-deploy\.settings\.deploy_modes\.testing\.kernel_changed
+
+
+
+Mode to deploy the testing branch with if the kernel, kernel-modules or initrd changed
+
+
+
+*Type:*
+one of “test”, “switch”, “boot”, “reboot”
+
+
+
+*Default:*
+` "test" `
+
+
+
+## services\.nixos-pull-deploy\.settings\.deploy_modes\.testing\.normal
 
 
 
@@ -123,7 +195,7 @@ Mode to deploy the testing branch with
 
 
 *Type:*
-one of “test”, “switch”, “boot”, “reboot”, “reboot_on_kernel_change”
+one of “test”, “switch”, “boot”, “reboot”
 
 
 
@@ -164,7 +236,7 @@ The following environment variables are available:
     - success: deployment succeeded
     - failed: deployment failed (either evaluation or build failure or it was automatically rolled back)
  - DEPLOY_TYPE: Type of branch that is being deployed, either “main” or “testing”
- - DEPLOY_MODE: Deployment mode, can be one of test, switch, boot, reboot, reboot_on_kernel_change
+ - DEPLOY_MODE: Deployment mode, can be one of test, switch, boot, reboot; only set if status is success
  - DEPLOY_COMMIT: Hash of the deployed commit
  - DEPLOY_COMMIT_MESSAGE: Message of the deployed commit
  - DEPLOY_SUCCESS_COMMIT: Hash of the last successfully deployed commit or an empty string
