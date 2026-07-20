@@ -24,10 +24,7 @@ let
 
       makeWrapperArgs = [
         "--set DEPLOY_CONFIG ${configFile}"
-      ]
-      ++ (lib.optional (cfg.settings.build_remotes != [ "local" ])
-        "--prefix PATH : ${lib.makeBinPath [ pkgs.openssh ]}"
-      );
+      ];
     in
     pkgs.stdenvNoCC.mkDerivation {
       name = "nixos-pull-deploy";

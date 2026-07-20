@@ -29,7 +29,6 @@ class Config:
     testing_mode: "DeployModes"
     magic_rollback_timeout: int
     fetch_retries: int
-    build_remotes: list[Remote | None]
     git: GitWrapper
 
     @classmethod
@@ -70,12 +69,6 @@ class Config:
             testing_mode=testing_mode,
             magic_rollback_timeout=parsed["magic_rollback_timeout"],
             fetch_retries=parsed["fetch_retries"],
-            build_remotes=list(
-                map(
-                    lambda host: Remote.parse(host) if host != "local" else None,
-                    parsed["build_remotes"],
-                )
-            ),
             git=GitWrapper(parsed["config_dir"]),
         )
 
@@ -159,30 +152,11 @@ class NixosDeploy:
             log(f"hook exited with code {process.returncode}", LogLevel.ERROR)
 
     def build_configuration(self, add_to_profile: bool) -> str:
-        flake = nix_archive(self.config.config_dir)
-
-        for remote in self.config.build_remotes:
-            try:
-                nix_copy(flake, None, remote)
-                system_path = f'{flake}#nixosConfigurations."{self.hostname}".config.system.build.toplevel'
-                build_output = nix_build(system_path, remote)
-                nix_copy(build_output, remote, None)
-                if add_to_profile:
-                    nix_set_system_profile(build_output)
-                return build_output
-            except NixException as exception:
-                if (
-                    remote is not None
-                    and exception.state == CommandState.CONNECTION_FAILED
-                ):
-                    log(
-                        f"Failed to connect to remote {remote.host}, port {remote.port}",
-                        LogLevel.WARNING,
-                    )
-                    continue
-                raise exception
-
-        raise NixException(CommandState.CONNECTION_FAILED, 0, "", [])
+        system_path = f'{self.config.config_dir}#nixosConfigurations."{self.hostname}".config.system.build.toplevel'
+        build_output = nix_build(system_path)
+        if add_to_profile:
+            nix_set_system_profile(build_output)
+        return build_output
 
     def switch_to_configuration(
         self,

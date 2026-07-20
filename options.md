@@ -78,40 +78,6 @@ string
 
 
 
-## services\.nixos-pull-deploy\.settings\.build_remotes
-
-
-
-Remotes to evaluate and build the configuration on
-
-
-
-*Type:*
-list of string
-
-
-
-*Default:*
-
-```
-[
-  "local"
-]
-```
-
-
-
-*Example:*
-
-```
-[
-  "root@example.com:123"
-  "local"
-]
-```
-
-
-
 ## services\.nixos-pull-deploy\.settings\.config_dir
 
 

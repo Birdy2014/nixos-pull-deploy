@@ -131,16 +131,6 @@
           default = 1;
           description = "How often to retry fetching from the remote";
         };
-
-        build_remotes = lib.mkOption {
-          type = lib.types.listOf lib.types.str;
-          default = [ "local" ];
-          description = "Remotes to evaluate and build the configuration on";
-          example = [
-            "root@example.com:123"
-            "local"
-          ];
-        };
       };
     };
 }
