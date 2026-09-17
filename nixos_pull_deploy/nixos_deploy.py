@@ -38,17 +38,15 @@ class Config:
         origin = parsed["origin"]
         origin_url = origin["url"]
 
-        token = None
-        if "token" in origin:
+        if ask_token:
+            token = input("Git token: ")
+        elif "token" in origin:
             token = origin["token"]
         elif "token_file" in origin:
-            try:
-                with open(origin["token_file"], "r") as file:
-                    token = file.readline()
-            except (FileNotFoundError, PermissionError) as exception:
-                if not ask_token:
-                    raise exception
-                token = input("Git token: ")
+            with open(origin["token_file"], "r") as file:
+                token = file.readline()
+        else:
+            token = None
 
         if token is not None:
             origin_url = origin_url.replace("https://", f"https://git:{token}@")
