@@ -79,25 +79,22 @@ The second condition ensures that testing branches will not downgrade the host t
 
 ### Deployment Modes
 
-The following modes work the same as in `nixos-rebuild`:
-- `test`
-- `switch`
-- `boot`
+In addition to the modes `test`, `switch` and `boot`, a mode called `reboot` is supported, which makes the new configuration the default and then reboots the host.
 
-These modes are custom:
-- `reboot`
-  - Sets the new generation as default (like `boot`) and reboots the host.
-- `reboot_on_kernel_change`
-  - Behaves like `reboot` if the kernel or initrd changed, otherwise it will `switch`.
+The mode to deploy with is configured per branch type (`main` or `testing`) and per situation:
+- `normal`: default case
+- `kernel_changed`: the kernel, kernel modules or initrd of the new configuration differ from the booted ones
+- `inhibited`: the switch inhibitors of the new configuration differ from those of the currently booted configuration
+
+The mode can also be overridden for a single deployment with the flag `--deploy-mode-override` when invoking `nixos-pull-deploy run`.
 
 ### Magic Rollback
 
 This feature is inspired by [deploy-rs](https://github.com/serokell/deploy-rs).
-It is meant to rollback automatically when a change breaks the network connection.
-To do this, the connection to the git remote is checked after a deployment using either of the modes `test`, `switch`, `reboot_on_kernel_change` (only when the kernel/initrd didn't change).
-If the connection fails, the host is reverted to the previously deployed configuration.
+It rolls back the configuration automatically when the network connection to the git remote fails after deployment.
+Magic rollback is only supported with the deployment modes `test` and `switch`.
 
-Magic rollback can be temporarily disabled with the flag `--no-magic-rollback` when invoking `nixos-pull-deploy run`.
+Magic rollback is enabled by default, but can be disabled for a single deployment with the flag `--no-magic-rollback` when invoking `nixos-pull-deploy run`.
 
 ### Automatic Updates
 

@@ -1,28 +1,27 @@
 {
   lib,
-  python3Packages,
-  git,
+  rustPlatform,
+  makeWrapper,
+  pkg-config,
+  openssl,
   nix,
 }:
 
-python3Packages.buildPythonApplication {
+rustPlatform.buildRustPackage {
   pname = "nixos-pull-deploy-unwrapped";
-  version = "0.1.0";
+  version = "0.2.0";
 
   src = ../.;
 
-  pyproject = true;
-  build-system = [ python3Packages.setuptools ];
+  cargoHash = "sha256-sD4nGod3E2phiEuN1v8SSjGr3QgiLHMStwWhXL6Gu5Y=";
 
-  nativeCheckInputs = [
-    python3Packages.unittestCheckHook
-    git
-  ];
+  nativeBuildInputs = [ makeWrapper pkg-config ];
+  buildInputs = [ openssl ];
 
-  propagatedBuildInputs = map lib.getBin [
-    git
-    nix
-  ];
+  postInstall = ''
+    wrapProgram $out/bin/nixos-pull-deploy \
+      --prefix PATH : ${lib.makeBinPath [ nix ]}
+  '';
 
   meta.mainProgram = "nixos-pull-deploy";
 }

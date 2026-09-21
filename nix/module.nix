@@ -51,8 +51,10 @@ in
     systemd = lib.mkIf cfg.autoUpgrade.enable {
       services.nixos-pull-deploy = {
         description = "automatic pull-based nixos deployments";
-        script = "${lib.getExe package} run";
-        serviceConfig.Type = "exec";
+        serviceConfig = {
+          Type = "exec";
+          ExecStart = "${lib.getExe package} run";
+        };
         restartIfChanged = false;
       };
 
