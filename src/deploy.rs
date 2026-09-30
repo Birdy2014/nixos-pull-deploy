@@ -1,4 +1,9 @@
-use std::{error, fmt, process::exit, rc::Rc};
+use std::{
+    error, fmt,
+    io::{Write, stdout},
+    process::exit,
+    rc::Rc,
+};
 
 use crate::{
     config::{Config, DEPLOYED_BRANCH, DEPLOYED_BRANCH_MAIN, DEPLOYED_BRANCH_SUCCESS, DeployMode},
@@ -165,6 +170,7 @@ impl Deployer {
 
         log(&self.git.get_commit_message(commit)?, LogLevel::Info);
         log("", LogLevel::Info);
+        stdout().flush().unwrap();
 
         self.system
             .run_hook(self, HookStatus::Pre, &branch_type, None, commit);
@@ -210,6 +216,7 @@ impl Deployer {
             ),
             LogLevel::Info,
         );
+        stdout().flush().unwrap();
 
         let old_toplevel = self.system.current_toplevel();
 
