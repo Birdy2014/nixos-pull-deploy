@@ -11,12 +11,24 @@ pub struct GitWrapper {
 }
 
 impl GitWrapper {
-    pub fn new(directory: &str, origin_url: &str) -> Result<Self, git2::Error> {
+    pub fn new(
+        directory: &str,
+        origin_url: &str,
+        token: Option<String>,
+    ) -> Result<Self, git2::Error> {
+        let origin_url = match token {
+            Some(token) => origin_url.replace("https://", &format!("https://git:{}@", token)),
+            None => origin_url.to_owned(),
+        };
+
         match Repository::open(directory) {
-            Ok(repo) => Ok(Self { repo }),
+            Ok(repo) => {
+                repo.remote_set_url("origin", &origin_url)?;
+                Ok(Self { repo })
+            }
             Err(err) if err.code() == ErrorCode::NotFound => match Repository::init(directory) {
                 Ok(repo) => {
-                    repo.remote("origin", origin_url)?;
+                    repo.remote("origin", &origin_url)?;
                     Ok(Self { repo })
                 }
                 Err(err) => Err(err),

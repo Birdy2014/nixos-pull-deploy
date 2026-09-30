@@ -1,7 +1,8 @@
 use std::{
     env,
     ffi::CStr,
-    fs::exists,
+    fs::{exists, read_to_string},
+    io::{Write, stdin, stdout},
     process::{self, exit},
     rc::Rc,
 };
@@ -114,7 +115,32 @@ fn main() -> anyhow::Result<()> {
         .hostname
         .or(gethostname())
         .expect("Failed to get hostname");
-    let git = GitWrapper::new(&config.config_dir, &config.origin.url)?;
+
+    let token = if cli.ask_token {
+        print!("Git token: ");
+        stdout().flush()?;
+        let mut input = String::new();
+        stdin().read_line(&mut input)?;
+        Some(input.trim().to_owned())
+    } else if let Some(token) = &config.origin.token {
+        if config.origin.token_file.is_some() {
+            log("Both token and token_file are set", LogLevel::Warning);
+        }
+        Some(token.to_owned())
+    } else if let Some(token_file) = &config.origin.token_file {
+        let Ok(token) = read_to_string(token_file) else {
+            log(
+                &format!("Failed to read token_file '{}'", token_file),
+                LogLevel::Error,
+            );
+            exit(1);
+        };
+        Some(token)
+    } else {
+        None
+    };
+    let git = GitWrapper::new(&config.config_dir, &config.origin.url, token)?;
+
     let deployer = Deployer::new(config, hostname, git, system);
 
     match cli.command {

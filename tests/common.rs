@@ -197,7 +197,7 @@ impl TestEnv {
 
         fs::create_dir_all(&local_path).unwrap();
         let origin_url = format!("file://{}", origin_path.display());
-        let git = GitWrapper::new(local_path.to_str().unwrap(), &origin_url).unwrap();
+        let git = GitWrapper::new(local_path.to_str().unwrap(), &origin_url, None).unwrap();
 
         let config = make_config(local_path.to_str().unwrap(), &origin_url);
         let mock = Rc::new(MockSystem::new());
