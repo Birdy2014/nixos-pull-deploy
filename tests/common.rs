@@ -150,8 +150,10 @@ pub fn make_config(local_repo: &str, origin_url: &str) -> Config {
             main: "main".to_string(),
             testing_prefix: "testing/".to_string(),
             testing_separator: "/".to_string(),
+            username: "git".to_owned(),
             token: None,
             token_file: None,
+            ssh_key_path: None,
         },
         hook: None,
         deploy_modes: nixos_pull_deploy::config::DeployModes {
@@ -197,9 +199,16 @@ impl TestEnv {
 
         fs::create_dir_all(&local_path).unwrap();
         let origin_url = format!("file://{}", origin_path.display());
-        let git = GitWrapper::new(local_path.to_str().unwrap(), &origin_url, None).unwrap();
-
         let config = make_config(local_path.to_str().unwrap(), &origin_url);
+        let git = GitWrapper::new(
+            local_path.to_str().unwrap(),
+            &origin_url,
+            &config.origin.username,
+            config.origin.token.clone(),
+            config.origin.ssh_key_path.clone(),
+        )
+        .unwrap();
+
         let mock = Rc::new(MockSystem::new());
         let system: Rc<dyn System> = mock.clone();
         let deployer = Deployer::new(config, "host".to_string(), git, system);

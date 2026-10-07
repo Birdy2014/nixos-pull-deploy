@@ -24,8 +24,10 @@ pub struct Origin {
     pub main: String,
     pub testing_prefix: String,
     pub testing_separator: String,
+    pub username: String,
     pub token: Option<String>,
     pub token_file: Option<String>,
+    pub ssh_key_path: Option<String>,
 }
 
 #[derive(Deserialize)]

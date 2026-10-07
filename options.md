@@ -307,6 +307,24 @@ string
 
 
 
+## services\.nixos-pull-deploy\.settings\.origin\.ssh_key_path
+
+
+
+Path to key for git ssh authentication
+
+
+
+*Type:*
+null or string
+
+
+
+*Default:*
+` null `
+
+
+
 ## services\.nixos-pull-deploy\.settings\.origin\.testing_prefix
 
 
@@ -389,5 +407,23 @@ git url to the upstream repository
 
 *Type:*
 string
+
+
+
+## services\.nixos-pull-deploy\.settings\.origin\.username
+
+
+
+Username when using plaintext authentication with ` token_file `
+
+
+
+*Type:*
+string
+
+
+
+*Default:*
+` "git" `
 
 

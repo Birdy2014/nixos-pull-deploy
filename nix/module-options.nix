@@ -65,6 +65,12 @@
             description = "Separator between hostnames in testing branch name";
           };
 
+          username = lib.mkOption {
+            type = lib.types.str;
+            default = "git";
+            description = "Username when using plaintext authentication with `token_file`";
+          };
+
           token = lib.mkOption {
             type = lib.types.nullOr lib.types.str;
             default = null;
@@ -75,6 +81,12 @@
             type = lib.types.nullOr lib.types.str;
             default = null;
             description = "File to token to access private git repository via https";
+          };
+
+          ssh_key_path = lib.mkOption {
+            type = lib.types.nullOr lib.types.str;
+            default = null;
+            description = "Path to key for git ssh authentication";
           };
         };
 

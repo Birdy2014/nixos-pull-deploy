@@ -1,6 +1,6 @@
 use crate::logger::{LogLevel, log};
-use git2::ErrorCode;
 use git2::{BranchType, FetchOptions, FetchPrune, Oid, Repository, build::CheckoutBuilder};
+use git2::{Cred, ErrorCode, RemoteCallbacks};
 use std::thread;
 use std::time::Duration;
 
@@ -8,15 +8,21 @@ pub type Commit = Oid;
 
 pub struct GitWrapper {
     repo: Repository,
+    username: String,
+    password: Option<String>,
+    ssh_key_path: Option<String>,
 }
 
 impl GitWrapper {
     pub fn new(
         directory: &str,
         origin_url: &str,
+        username: &str,
         token: Option<String>,
+        ssh_key_path: Option<String>,
     ) -> Result<Self, git2::Error> {
-        let origin_url = match token {
+        // Needed for the git cli to be able to authenticate when invoking it manually
+        let origin_url = match &token {
             Some(token) => origin_url.replace("https://", &format!("https://git:{}@", token)),
             None => origin_url.to_owned(),
         };
@@ -24,12 +30,22 @@ impl GitWrapper {
         match Repository::open(directory) {
             Ok(repo) => {
                 repo.remote_set_url("origin", &origin_url)?;
-                Ok(Self { repo })
+                Ok(Self {
+                    repo,
+                    username: username.to_owned(),
+                    password: token,
+                    ssh_key_path,
+                })
             }
             Err(err) if err.code() == ErrorCode::NotFound => match Repository::init(directory) {
                 Ok(repo) => {
                     repo.remote("origin", &origin_url)?;
-                    Ok(Self { repo })
+                    Ok(Self {
+                        repo,
+                        username: username.to_owned(),
+                        password: token,
+                        ssh_key_path,
+                    })
                 }
                 Err(err) => Err(err),
             },
@@ -57,8 +73,31 @@ impl GitWrapper {
     }
 
     fn fetch_once(&self) -> Result<(), git2::Error> {
+        let mut callbacks = RemoteCallbacks::new();
+        callbacks.credentials(|_url, username_from_url, allowed_types| {
+            if allowed_types.is_ssh_key()
+                && let Some(ssh_key_path) = &self.ssh_key_path
+            {
+                return Cred::ssh_key(
+                    username_from_url.unwrap_or(&self.username),
+                    None,
+                    std::path::Path::new(ssh_key_path),
+                    None,
+                );
+            }
+
+            if allowed_types.is_user_pass_plaintext()
+                && let Some(password) = self.password.as_ref()
+            {
+                return Cred::userpass_plaintext(&self.username, password);
+            }
+
+            Err(git2::Error::from_str("unsupported authentication"))
+        });
+
         let mut remote = self.repo.find_remote("origin")?;
         let mut options = FetchOptions::new();
+        options.remote_callbacks(callbacks);
         options.prune(FetchPrune::On);
         remote.fetch::<&str>(&[], Some(&mut options), None)?;
         Ok(())

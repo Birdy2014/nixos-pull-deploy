@@ -139,7 +139,13 @@ fn main() -> anyhow::Result<()> {
     } else {
         None
     };
-    let git = GitWrapper::new(&config.config_dir, &config.origin.url, token)?;
+    let git = GitWrapper::new(
+        &config.config_dir,
+        &config.origin.url,
+        &config.origin.username,
+        token,
+        config.origin.ssh_key_path.clone(),
+    )?;
 
     let deployer = Deployer::new(config, hostname, git, system);
 
