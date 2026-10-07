@@ -12,12 +12,18 @@ boolean
 
 
 *Default:*
-` false `
+
+```nix
+false
+```
 
 
 
 *Example:*
-` true `
+
+```nix
+true
+```
 
 
 
@@ -33,12 +39,18 @@ boolean
 
 
 *Default:*
-` false `
+
+```nix
+false
+```
 
 
 
 *Example:*
-` true `
+
+```nix
+true
+```
 
 
 
@@ -56,7 +68,10 @@ string
 
 
 *Default:*
-` "10min" `
+
+```nix
+"10min"
+```
 
 
 
@@ -74,7 +89,10 @@ string
 
 
 *Default:*
-` "*-*-* 02:00:00" `
+
+```nix
+"*-*-* 02:00:00"
+```
 
 
 
@@ -92,7 +110,10 @@ string
 
 
 *Default:*
-` "/var/lib/nixos-pull-deploy/repo" `
+
+```nix
+"/var/lib/nixos-pull-deploy/repo"
+```
 
 
 
@@ -110,7 +131,10 @@ one of “test”, “switch”, “boot”, “reboot”
 
 
 *Default:*
-` "boot" `
+
+```nix
+"boot"
+```
 
 
 
@@ -128,7 +152,10 @@ one of “test”, “switch”, “boot”, “reboot”
 
 
 *Default:*
-` "switch" `
+
+```nix
+"switch"
+```
 
 
 
@@ -146,7 +173,10 @@ one of “test”, “switch”, “boot”, “reboot”
 
 
 *Default:*
-` "switch" `
+
+```nix
+"switch"
+```
 
 
 
@@ -164,7 +194,10 @@ one of “test”, “switch”, “boot”, “reboot”
 
 
 *Default:*
-` "boot" `
+
+```nix
+"boot"
+```
 
 
 
@@ -182,7 +215,10 @@ one of “test”, “switch”, “boot”, “reboot”
 
 
 *Default:*
-` "test" `
+
+```nix
+"test"
+```
 
 
 
@@ -200,7 +236,10 @@ one of “test”, “switch”, “boot”, “reboot”
 
 
 *Default:*
-` "test" `
+
+```nix
+"test"
+```
 
 
 
@@ -218,7 +257,10 @@ signed integer
 
 
 *Default:*
-` 1 `
+
+```nix
+1
+```
 
 
 
@@ -251,13 +293,16 @@ null or absolute path
 
 
 *Default:*
-` null `
+
+```nix
+null
+```
 
 
 
 *Example:*
 
-```
+```nix
 ''
   pkgs.writeShellScript "hook.sh" '''
     if [[ "$DEPLOY_STATUS" == 'success' ]] then
@@ -285,7 +330,10 @@ signed integer
 
 
 *Default:*
-` 3 `
+
+```nix
+3
+```
 
 
 
@@ -303,7 +351,10 @@ string
 
 
 *Example:*
-` "main" `
+
+```nix
+"main"
+```
 
 
 
@@ -321,7 +372,10 @@ null or string
 
 
 *Default:*
-` null `
+
+```nix
+null
+```
 
 
 
@@ -339,7 +393,10 @@ string
 
 
 *Default:*
-` "testing/" `
+
+```nix
+"testing/"
+```
 
 
 
@@ -357,7 +414,10 @@ string
 
 
 *Default:*
-` "/" `
+
+```nix
+"/"
+```
 
 
 
@@ -375,7 +435,10 @@ null or string
 
 
 *Default:*
-` null `
+
+```nix
+null
+```
 
 
 
@@ -393,7 +456,10 @@ null or string
 
 
 *Default:*
-` null `
+
+```nix
+null
+```
 
 
 
@@ -424,6 +490,9 @@ string
 
 
 *Default:*
-` "git" `
+
+```nix
+"git"
+```
 
 
