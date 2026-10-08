@@ -15,7 +15,10 @@ rustPlatform.buildRustPackage {
 
   cargoHash = "sha256-uQdhBfcviOMX6RBWP0u0TWfT2mdXiEjlvjEfBNDlOSc=";
 
-  nativeBuildInputs = [ makeWrapper pkg-config ];
+  nativeBuildInputs = [
+    makeWrapper
+    pkg-config
+  ];
   buildInputs = [ libgit2 ];
 
   postInstall = ''

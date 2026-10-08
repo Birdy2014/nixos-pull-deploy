@@ -38,7 +38,13 @@
 
       devShells = forAllSupportedSystems (pkgs: {
         default = self.packages.${pkgs.stdenv.hostPlatform.system}.default.overrideAttrs (attrs: {
-          nativeBuildInputs = attrs.nativeBuildInputs ++ (with pkgs; [ rust-analyzer rustfmt clippy ]);
+          nativeBuildInputs =
+            attrs.nativeBuildInputs
+            ++ (with pkgs; [
+              rust-analyzer
+              rustfmt
+              clippy
+            ]);
         });
       });
 

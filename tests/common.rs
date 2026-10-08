@@ -5,12 +5,12 @@ use std::{
 };
 
 use nixos_pull_deploy::{
-    config::{BranchDeployModes, Config, DEPLOYED_BRANCH, DEPLOYED_BRANCH_MAIN, DeployMode},
+    config::{
+        BranchDeployModes, Config, DEPLOYED_BRANCH, DEPLOYED_BRANCH_MAIN, DeployMode, Inhibition,
+    },
     deploy::Deployer,
     git::{Commit, GitWrapper},
-    system::{
-        BranchType, CommandState, HookStatus, Inhibition, NixError, StorePath, SwitchMode, System,
-    },
+    system::{BranchType, CommandState, HookStatus, NixError, StorePath, SwitchMode, System},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]

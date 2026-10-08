@@ -10,13 +10,11 @@ use std::{
 };
 
 use crate::{
-    config::{DEPLOYED_BRANCH_SUCCESS, DeployMode},
+    config::{DEPLOYED_BRANCH_SUCCESS, DeployMode, Inhibition},
     deploy::Deployer,
     git::Commit,
     logger::{LogLevel, log},
-    system::{
-        BranchType, CommandState, HookStatus, Inhibition, NixError, StorePath, SwitchMode, System,
-    },
+    system::{BranchType, CommandState, HookStatus, NixError, StorePath, SwitchMode, System},
 };
 
 static CANCELLED: AtomicBool = AtomicBool::new(false);
@@ -72,7 +70,7 @@ fn run_nix_cancelable(command: &[String], print_stdout: bool) -> Result<String, 
 
     // Install handlers that forward SIGTERM to the child's process group.
     let mut new_action: libc::sigaction = unsafe { std::mem::zeroed() };
-    new_action.sa_sigaction = on_signal as usize;
+    new_action.sa_sigaction = on_signal as *const () as usize;
     let mut old_int: libc::sigaction = unsafe { std::mem::zeroed() };
     let mut old_term: libc::sigaction = unsafe { std::mem::zeroed() };
     unsafe {

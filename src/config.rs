@@ -2,11 +2,16 @@ use clap::ValueEnum;
 use serde::Deserialize;
 use std::fs::read_to_string;
 
-use crate::system::Inhibition;
-
 pub const DEPLOYED_BRANCH: &str = "_deployed";
 pub const DEPLOYED_BRANCH_MAIN: &str = "_deployed_main";
 pub const DEPLOYED_BRANCH_SUCCESS: &str = "_deployed_success";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Inhibition {
+    Normal,
+    KernelChanged,
+    Inhibited,
+}
 
 #[derive(Deserialize)]
 pub struct Config {
@@ -53,7 +58,7 @@ pub struct BranchDeployModes {
 }
 
 impl BranchDeployModes {
-    pub fn get(&self, inhibition: &crate::system::Inhibition) -> DeployMode {
+    pub fn get(&self, inhibition: &Inhibition) -> DeployMode {
         match inhibition {
             Inhibition::Normal => self.normal,
             Inhibition::KernelChanged => self.kernel_changed,

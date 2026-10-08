@@ -6,10 +6,13 @@ use std::{
 };
 
 use crate::{
-    config::{Config, DEPLOYED_BRANCH, DEPLOYED_BRANCH_MAIN, DEPLOYED_BRANCH_SUCCESS, DeployMode},
+    config::{
+        Config, DEPLOYED_BRANCH, DEPLOYED_BRANCH_MAIN, DEPLOYED_BRANCH_SUCCESS, DeployMode,
+        Inhibition,
+    },
     git::GitWrapper,
     logger::{LogLevel, log},
-    system::{BranchType, CommandState, HookStatus, Inhibition, NixError, SwitchMode, System},
+    system::{BranchType, CommandState, HookStatus, NixError, SwitchMode, System},
 };
 
 pub struct Deployer {

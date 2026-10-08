@@ -1,15 +1,12 @@
 use std::{error::Error, fmt::Display};
 
-use crate::{config::DeployMode, deploy::Deployer, git::Commit};
+use crate::{
+    config::{DeployMode, Inhibition},
+    deploy::Deployer,
+    git::Commit,
+};
 
 pub type StorePath = String;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Inhibition {
-    Normal,
-    KernelChanged,
-    Inhibited,
-}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SwitchMode {

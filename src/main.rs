@@ -202,7 +202,7 @@ fn main() -> anyhow::Result<()> {
                         "{} new commit{} available on {}",
                         new_commit_count,
                         if new_commit_count > 1 { "s" } else { "" },
-                        &target.branch
+                        target.branch
                     ),
                     LogLevel::Info,
                 );
