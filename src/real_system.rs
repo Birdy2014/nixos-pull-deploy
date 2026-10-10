@@ -235,11 +235,15 @@ impl System for RealSystem {
             mode_string.to_owned(),
         ];
 
-        let Ok(output) = Command::new(&command[0]).args(&command[1..]).output() else {
+        let Ok(mut child) = Command::new(&command[0]).args(&command[1..]).spawn() else {
             return false;
         };
 
-        output.status.success()
+        let Ok(status) = child.wait() else {
+            return false;
+        };
+
+        status.success()
     }
 
     fn set_system_profile(&self, store_path: &StorePath) -> Result<(), NixError> {
