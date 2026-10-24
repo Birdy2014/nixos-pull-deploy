@@ -18,7 +18,7 @@ fn build_failure_runs_failed_hook_without_switching() {
     let target_branch_type = target.branch_type(&env.deployer.config);
     let result = env
         .deployer
-        .deploy(&target.branch, target_branch_type, false, None);
+        .deploy(&target.branch, target_branch_type, false, None, false);
     assert!(result.is_err());
 
     assert_eq!(
@@ -49,7 +49,7 @@ fn cancelled_build_is_retryable_without_hook_or_ref_updates() {
     let target_branch_type = target.branch_type(&env.deployer.config);
     let result = env
         .deployer
-        .deploy(&target.branch, target_branch_type, false, None);
+        .deploy(&target.branch, target_branch_type, false, None, false);
     assert!(result.is_err());
 
     // A cancelled build runs no hook and performs no switch.
@@ -77,9 +77,9 @@ fn magic_rollback_success() {
         let target = env.deployer.get_commit_to_deploy().unwrap();
 
         let target_branch_type = target.branch_type(&env.deployer.config);
-        let result = env
-            .deployer
-            .deploy(&target.branch, target_branch_type, true, Some(mode));
+        let result =
+            env.deployer
+                .deploy(&target.branch, target_branch_type, true, Some(mode), false);
         assert!(result.is_ok());
 
         let mut expected_calls = vec![
@@ -127,7 +127,7 @@ fn magic_rollback_on_fetch_failure() {
     let target_branch_type = target.branch_type(&env.deployer.config);
     let result = env
         .deployer
-        .deploy(&target.branch, target_branch_type, true, None);
+        .deploy(&target.branch, target_branch_type, true, None, false);
     assert!(result.is_err());
 
     // Test-switch the new toplevel, the connectivity fetch fails, roll back

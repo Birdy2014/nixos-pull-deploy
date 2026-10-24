@@ -20,7 +20,7 @@ fn deploy_and_assert(
 ) {
     let target_branch_type = target.branch_type(&env.deployer.config);
     env.deployer
-        .deploy(&target.branch, target_branch_type, false, None)
+        .deploy(&target.branch, target_branch_type, false, None, false)
         .unwrap();
 
     let mut expected = vec![

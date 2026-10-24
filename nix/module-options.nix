@@ -88,6 +88,12 @@
             default = null;
             description = "Path to key for git ssh authentication";
           };
+
+          ssh_signing_pubkeys = lib.mkOption {
+            type = lib.types.listOf lib.types.str;
+            default = [];
+            description = "Ssh public keys allowed to sign git commits. Signatures are not checked if no keys are provided.";
+          };
         };
 
         hook = lib.mkOption {
@@ -101,6 +107,7 @@
               - pre: deployment is about to happen
               - success: deployment succeeded
               - failed: deployment failed (either evaluation or build failure or it was automatically rolled back)
+              - invalid_signature: ssh_signing_pubkeys is not empty, but the commit to deploy doesn't pass signature verification
             - DEPLOY_TYPE: Type of branch that is being deployed, either "main" or "testing"
             - DEPLOY_MODE: Deployment mode, can be one of ${lib.concatStringsSep ", " deploy_modes}; only set if status is success
             - DEPLOY_COMMIT: Hash of the deployed commit

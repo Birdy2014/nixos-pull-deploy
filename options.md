@@ -277,6 +277,7 @@ The following environment variables are available:
     - pre: deployment is about to happen
     - success: deployment succeeded
     - failed: deployment failed (either evaluation or build failure or it was automatically rolled back)
+    - invalid_signature: ssh_signing_pubkeys is not empty, but the commit to deploy doesn’t pass signature verification
  - DEPLOY_TYPE: Type of branch that is being deployed, either “main” or “testing”
  - DEPLOY_MODE: Deployment mode, can be one of test, switch, boot, reboot; only set if status is success
  - DEPLOY_COMMIT: Hash of the deployed commit
@@ -375,6 +376,27 @@ null or string
 
 ```nix
 null
+```
+
+
+
+## services\.nixos-pull-deploy\.settings\.origin\.ssh_signing_pubkeys
+
+
+
+Ssh public keys allowed to sign git commits\. Signatures are not checked if no keys are provided\.
+
+
+
+*Type:*
+list of string
+
+
+
+*Default:*
+
+```nix
+[ ]
 ```
 
 

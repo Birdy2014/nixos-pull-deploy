@@ -1,6 +1,7 @@
 use crate::logger::{LogLevel, log};
 use git2::{BranchType, FetchOptions, FetchPrune, Oid, Repository, build::CheckoutBuilder};
 use git2::{Cred, ErrorCode, RemoteCallbacks};
+use ssh_key::{PublicKey, SshSig};
 use std::thread;
 use std::time::Duration;
 
@@ -117,6 +118,17 @@ impl GitWrapper {
         let commit = self.repo.find_commit(commit)?;
         let message = commit.message().unwrap_or("");
         Ok(message.to_owned())
+    }
+
+    pub fn verify_signature(&self, commit: Commit, key: PublicKey) -> Result<bool, git2::Error> {
+        let (signature, signed_data) = match self.repo.extract_signature(&commit, None) {
+            Ok(signature) => signature,
+            Err(error) if error.code() == ErrorCode::NotFound => return Ok(false),
+            Err(error) => return Err(error),
+        };
+        let sig = SshSig::from_pem(&*signature)
+            .map_err(|e| git2::Error::from_str(&format!("Failed to parse SSH signature: {}", e)))?;
+        Ok(key.verify("git", &signed_data, &sig).is_ok())
     }
 
     pub fn is_ancestor(&self, ancestor: Commit, commit: Commit) -> Result<bool, git2::Error> {

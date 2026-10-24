@@ -5,12 +5,14 @@ use std::{
     rc::Rc,
 };
 
+use ssh_key::PublicKey;
+
 use crate::{
     config::{
         Config, DEPLOYED_BRANCH, DEPLOYED_BRANCH_MAIN, DEPLOYED_BRANCH_SUCCESS, DeployMode,
         Inhibition,
     },
-    git::GitWrapper,
+    git::{Commit, GitWrapper},
     logger::{LogLevel, log},
     system::{BranchType, CommandState, HookStatus, NixError, SwitchMode, System},
 };
@@ -158,11 +160,25 @@ impl Deployer {
         branch_type: BranchType,
         magic_rollback: bool,
         deploy_mode_override: Option<DeployMode>,
+        skip_signature_verification: bool,
     ) -> Result<(), DeployError> {
         let Some(commit) = self.git.get_commit(branch) else {
             log(&format!("No commit on branch {}", branch), LogLevel::Error);
             exit(1);
         };
+
+        if !skip_signature_verification {
+            if !self.verify_commit_signature(commit)? {
+                self.system.run_hook(
+                    &self,
+                    HookStatus::InvalidSignature,
+                    &branch_type,
+                    None,
+                    commit,
+                );
+                exit(2);
+            }
+        }
 
         self.git.checkout(commit)?;
 
@@ -307,6 +323,37 @@ impl Deployer {
         Ok(())
     }
 
+    pub fn verify_commit_signature(&self, commit: Commit) -> Result<bool, DeployError> {
+        'key_verification: {
+            if self.config.origin.ssh_signing_pubkeys.is_empty() {
+                break 'key_verification;
+            }
+
+            for key in &self.config.origin.ssh_signing_pubkeys {
+                if self
+                    .git
+                    .verify_signature(
+                        commit,
+                        key.parse::<PublicKey>()
+                            .map_err(|_| DeployError::Signature)?,
+                    )
+                    .map_err(|_| DeployError::Signature)?
+                {
+                    log("Commit passed signature verification", LogLevel::Info);
+                    break 'key_verification;
+                }
+            }
+
+            log(
+                &format!("Invalid git commit signature on commit {}", commit),
+                LogLevel::Error,
+            );
+            return Ok(false);
+        }
+
+        Ok(true)
+    }
+
     fn get_deploy_mode(&self, branch_type: &BranchType, inhibition: &Inhibition) -> DeployMode {
         match branch_type {
             BranchType::Main => self.config.deploy_modes.main.get(inhibition),
@@ -321,6 +368,7 @@ pub enum DeployError {
     Nix(NixError),
     Switch,
     Rollback,
+    Signature,
 }
 
 impl fmt::Display for DeployError {
@@ -330,6 +378,7 @@ impl fmt::Display for DeployError {
             DeployError::Nix(_) => write!(f, "nix call failed"),
             DeployError::Switch => write!(f, "switch-to-configuration failed"),
             DeployError::Rollback => write!(f, "rolled back to previous generation"),
+            DeployError::Signature => write!(f, "failed to verify commit signature"),
         }
     }
 }
@@ -341,6 +390,7 @@ impl error::Error for DeployError {
             DeployError::Nix(ref error) => Some(error),
             DeployError::Switch => None,
             DeployError::Rollback => None,
+            DeployError::Signature => None,
         }
     }
 }

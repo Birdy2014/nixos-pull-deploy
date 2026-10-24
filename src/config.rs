@@ -33,6 +33,7 @@ pub struct Origin {
     pub token: Option<String>,
     pub token_file: Option<String>,
     pub ssh_key_path: Option<String>,
+    pub ssh_signing_pubkeys: Vec<String>,
 }
 
 #[derive(Deserialize)]

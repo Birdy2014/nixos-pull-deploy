@@ -40,6 +40,9 @@ enum Commands {
 
         #[arg(short, long)]
         deploy_mode_override: Option<DeployMode>,
+
+        #[arg(short, long)]
+        skip_signature_verification: bool,
     },
     Check,
 }
@@ -154,6 +157,7 @@ fn main() -> anyhow::Result<()> {
             rebuild,
             magic_rollback,
             deploy_mode_override,
+            skip_signature_verification,
         } => {
             if is_rebuilding()? {
                 log("A rebuild is already running", LogLevel::Error);
@@ -171,6 +175,7 @@ fn main() -> anyhow::Result<()> {
                 target.branch_type(&deployer.config),
                 magic_rollback,
                 deploy_mode_override,
+                skip_signature_verification,
             )?;
         }
         Commands::Check => {
@@ -190,6 +195,13 @@ fn main() -> anyhow::Result<()> {
             }
 
             let target = deployer.get_commit_to_deploy()?;
+
+            let commit = deployer
+                .git
+                .get_commit(&target.branch)
+                .ok_or(anyhow::anyhow!("Commit not found"))?;
+            deployer.verify_commit_signature(commit)?;
+
             if !target.is_new {
                 print_up_to_date_commit_info(&target, &deployer.git);
                 return Ok(());

@@ -154,6 +154,7 @@ pub fn make_config(local_repo: &str, origin_url: &str) -> Config {
             token: None,
             token_file: None,
             ssh_key_path: None,
+            ssh_signing_pubkeys: vec![],
         },
         hook: None,
         deploy_modes: nixos_pull_deploy::config::DeployModes {

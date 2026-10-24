@@ -20,6 +20,7 @@ pub enum HookStatus {
     Pre,
     Success,
     Failed,
+    InvalidSignature,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

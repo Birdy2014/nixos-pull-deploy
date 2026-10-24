@@ -305,6 +305,7 @@ impl System for RealSystem {
                     HookStatus::Pre => "pre",
                     HookStatus::Success => "success",
                     HookStatus::Failed => "failed",
+                    HookStatus::InvalidSignature => "invalid_signature",
                 },
             )
             .env(

@@ -9,11 +9,11 @@
 
 rustPlatform.buildRustPackage {
   pname = "nixos-pull-deploy-unwrapped";
-  version = "0.2.1";
+  version = "0.2.2";
 
   src = ../.;
 
-  cargoHash = "sha256-uQdhBfcviOMX6RBWP0u0TWfT2mdXiEjlvjEfBNDlOSc=";
+  cargoHash = "sha256-JMbcZrYgPqSuCaN9brNSOnH6HLoIeF6I3vDh4+IW7bY=";
 
   nativeBuildInputs = [
     makeWrapper
